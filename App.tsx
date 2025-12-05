@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, ChangeEvent } from 'react';
 import { Transaction, Category, TransactionType } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
@@ -15,6 +14,8 @@ import CategoryManagerModal from './components/CategoryManagerModal';
 import Sidebar from './components/Sidebar';
 import ReportsPage from './pages/ReportsPage';
 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwO0qGDcYU866NphUgwr7gNcF9kMSQP87BoaaBZumQjl64fcck4PqQLisY98wYIfgJg/exec';
+
 export default function App(): React.ReactElement {
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
   const [incomeCategories, setIncomeCategories] = useLocalStorage<Category[]>('incomeCategories', INITIAL_INCOME_CATEGORIES);
@@ -26,6 +27,7 @@ export default function App(): React.ReactElement {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [activeView, setActiveView] = useState<'dashboard' | 'reports'>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
 
   const getMonthRange = () => {
@@ -164,6 +166,127 @@ export default function App(): React.ReactElement {
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleExportExcel = () => {
+    if (transactions.length === 0) {
+      alert("Không có dữ liệu để xuất.");
+      return;
+    }
+
+    const headers = ["Ngày", "Loại", "Danh mục", "Số tiền", "Mô tả"];
+    const rows = transactions.map(t => [
+      new Date(t.date).toLocaleDateString('vi-VN'),
+      t.type === 'income' ? 'Thu' : 'Chi',
+      t.category.name,
+      t.amount.toString(),
+      `"${t.description.replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\r\n");
+
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const date = new Date().toISOString().slice(0, 10);
+    link.download = `chi-tiet-thu-chi-${date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSyncToCloud = async () => {
+    setIsSyncing(true);
+    try {
+      // Sử dụng mode 'no-cors' để tránh lỗi CORS khi gửi POST request đến Google Apps Script.
+      // Lưu ý: Với 'no-cors', client sẽ KHÔNG nhận được nội dung phản hồi từ server (response type là 'opaque').
+      // Điều này có nghĩa là ta không thể biết chính xác script có chạy thành công 100% hay không,
+      // nhưng request chắc chắn đã được gửi đi.
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          "Content-Type": "text/plain",
+        },
+        body: JSON.stringify({
+          action: 'sync',
+          data: transactions
+        })
+      });
+      
+      // Vì không đọc được response, ta thông báo đã gửi request.
+      alert('Đã gửi yêu cầu đồng bộ. Vui lòng kiểm tra Google Sheet sau vài giây để xác nhận.');
+      
+    } catch (error) {
+       console.error("Sync Error:", error);
+       alert('Lỗi kết nối: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleLoadFromCloud = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn tải dữ liệu từ Google Sheet? Dữ liệu hiện tại trên ứng dụng sẽ được cập nhật.")) return;
+    
+    setIsSyncing(true);
+    try {
+      // Thêm timestamp để tránh cache
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${GOOGLE_SCRIPT_URL}?t=${timestamp}`, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        const loadedTransactions: Transaction[] = result.data;
+        
+        // Update Categories based on loaded transactions to ensure consistency
+        const newIncomeCats = [...incomeCategories];
+        const newExpenseCats = [...expenseCategories];
+        const incomeIds = new Set(newIncomeCats.map(c => c.id));
+        const expenseIds = new Set(newExpenseCats.map(c => c.id));
+
+        loadedTransactions.forEach(t => {
+           if (t.type === 'income') {
+             if (!incomeIds.has(t.category.id)) {
+               newIncomeCats.push(t.category);
+               incomeIds.add(t.category.id);
+             }
+           } else if (t.type === 'expense') {
+             if (!expenseIds.has(t.category.id)) {
+               newExpenseCats.push(t.category);
+               expenseIds.add(t.category.id);
+             }
+           }
+        });
+
+        setTransactions(loadedTransactions);
+        setIncomeCategories(newIncomeCats);
+        setExpenseCategories(newExpenseCats);
+        
+        alert('Đã tải dữ liệu thành công từ Google Sheet!');
+      } else {
+        throw new Error(result.message || 'Lỗi không xác định');
+      }
+    } catch (error) {
+      console.error("Load Error:", error);
+      alert('Không thể tải dữ liệu: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setIsSyncing(false);
+    }
   };
   
   const filteredTransactions = useMemo(() => {
@@ -321,6 +444,10 @@ export default function App(): React.ReactElement {
         onAddCategory={addCategory}
         onBackup={handleBackup}
         onRestore={handleRestore}
+        onExportExcel={handleExportExcel}
+        onSyncToCloud={handleSyncToCloud}
+        onLoadFromCloud={handleLoadFromCloud}
+        isSyncing={isSyncing}
       />
     </div>
   );

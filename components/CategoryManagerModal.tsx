@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, ChangeEvent } from 'react';
 import { Category, TransactionType } from '../types';
-import { EditIcon, DeleteIcon, DownloadIcon, UploadIcon } from './icons';
+import { EditIcon, DeleteIcon, DownloadIcon, UploadIcon, ExcelIcon, CloudUploadIcon, CloudDownloadIcon } from './icons';
 
 interface CategoryManagerModalProps {
   isOpen: boolean;
@@ -12,6 +13,10 @@ interface CategoryManagerModalProps {
   onAddCategory: (category: Omit<Category, 'id'>) => void;
   onBackup: () => void;
   onRestore: (event: ChangeEvent<HTMLInputElement>) => void;
+  onExportExcel: () => void;
+  onSyncToCloud: () => void;
+  onLoadFromCloud: () => void;
+  isSyncing: boolean;
 }
 
 const CategoryList = ({ 
@@ -123,6 +128,10 @@ export default function CategoryManagerModal({
   onAddCategory,
   onBackup,
   onRestore,
+  onExportExcel,
+  onSyncToCloud,
+  onLoadFromCloud,
+  isSyncing,
 }: CategoryManagerModalProps): React.ReactElement | null {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -172,8 +181,28 @@ export default function CategoryManagerModal({
             />
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex gap-4">
+        <div className="mt-6 pt-4 border-t border-gray-700 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-text-secondary">Dữ Liệu</h3>
+            <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
+               <button 
+                onClick={onSyncToCloud} 
+                disabled={isSyncing}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors flex-grow sm:flex-grow-0 justify-center ${isSyncing ? 'bg-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              >
+                <CloudUploadIcon />
+                {isSyncing ? 'Đang xử lý...' : 'Đồng bộ lên Cloud'}
+              </button>
+              <button 
+                onClick={onLoadFromCloud} 
+                disabled={isSyncing}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors flex-grow sm:flex-grow-0 justify-center ${isSyncing ? 'bg-gray-600 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700 text-white'}`}
+              >
+                <CloudDownloadIcon />
+                {isSyncing ? 'Đang xử lý...' : 'Tải từ Cloud'}
+              </button>
+            </div>
+            
+            <div className="flex flex-wrap gap-3 justify-center sm:justify-start border-t border-gray-700 pt-3">
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -181,21 +210,28 @@ export default function CategoryManagerModal({
                 className="hidden"
                 accept="application/json"
               />
-              <button onClick={handleRestoreClick} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gray-600 hover:bg-gray-500 rounded-md transition-colors">
+              <button onClick={handleRestoreClick} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gray-700 hover:bg-gray-600 rounded-md transition-colors flex-grow sm:flex-grow-0 justify-center">
                 <UploadIcon />
                 Khôi Phục
               </button>
-              <button onClick={onBackup} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gray-600 hover:bg-gray-500 rounded-md transition-colors">
+              <button onClick={onBackup} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gray-700 hover:bg-gray-600 rounded-md transition-colors flex-grow sm:flex-grow-0 justify-center">
                 <DownloadIcon />
-                Sao Lưu
+                Sao Lưu (JSON)
+              </button>
+               <button onClick={onExportExcel} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors flex-grow sm:flex-grow-0 justify-center">
+                <ExcelIcon />
+                Xuất Excel
               </button>
             </div>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-md text-sm font-medium bg-accent hover:bg-highlight transition-colors"
-            >
-              Đóng
-            </button>
+
+            <div className="flex justify-end pt-2">
+                <button
+                onClick={onClose}
+                className="px-6 py-2 rounded-md text-sm font-medium bg-accent hover:bg-highlight transition-colors"
+                >
+                Đóng
+                </button>
+            </div>
         </div>
       </div>
     </div>
