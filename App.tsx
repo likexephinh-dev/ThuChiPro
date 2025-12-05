@@ -205,24 +205,23 @@ export default function App(): React.ReactElement {
   const handleSyncToCloud = async () => {
     setIsSyncing(true);
     try {
-      // Sử dụng mode 'no-cors' để tránh lỗi CORS khi gửi POST request đến Google Apps Script.
-      // Lưu ý: Với 'no-cors', client sẽ KHÔNG nhận được nội dung phản hồi từ server (response type là 'opaque').
-      // Điều này có nghĩa là ta không thể biết chính xác script có chạy thành công 100% hay không,
-      // nhưng request chắc chắn đã được gửi đi.
+      // SỬ DỤNG URLSearchParams (FORM DATA)
+      // Đây là phương pháp ổn định nhất để gửi POST request đến Google Apps Script
+      // mà không bị mất dữ liệu khi trình duyệt thực hiện redirect (302) hoặc chặn CORS.
+      const formData = new URLSearchParams();
+      formData.append('action', 'sync');
+      formData.append('data', JSON.stringify(transactions));
+
       await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
-          "Content-Type": "text/plain",
+            'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({
-          action: 'sync',
-          data: transactions
-        })
+        body: formData
       });
       
-      // Vì không đọc được response, ta thông báo đã gửi request.
-      alert('Đã gửi yêu cầu đồng bộ. Vui lòng kiểm tra Google Sheet sau vài giây để xác nhận.');
+      alert('Đã gửi yêu cầu đồng bộ. Vui lòng kiểm tra Google Sheet sau vài giây.');
       
     } catch (error) {
        console.error("Sync Error:", error);
@@ -238,8 +237,6 @@ export default function App(): React.ReactElement {
     setIsSyncing(true);
     try {
       const timestamp = new Date().getTime();
-      // Loại bỏ headers và giữ mode 'cors' để đọc dữ liệu.
-      // GET requests thường ít bị chặn CORS hơn POST nếu server trả về headers đúng.
       const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=read&t=${timestamp}`, {
         method: 'GET',
         mode: 'cors',
@@ -250,10 +247,8 @@ export default function App(): React.ReactElement {
         throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
       }
 
-      // Đọc response dưới dạng text trước để kiểm tra xem có phải HTML lỗi không
       const textResult = await response.text();
       
-      // Nếu response bắt đầu bằng '<', khả năng cao là trang HTML báo lỗi của Google (do chưa share quyền Anyone)
       if (textResult.trim().startsWith('<')) {
         console.error("Server returned HTML instead of JSON:", textResult);
         throw new Error("Lỗi cấu hình Backend: Server trả về HTML thay vì JSON. Vui lòng kiểm tra lại quyền truy cập (Deploy as 'Anyone') trong Google Apps Script.");
@@ -269,7 +264,6 @@ export default function App(): React.ReactElement {
       if (result.status === 'success') {
         const loadedTransactions: Transaction[] = result.data;
         
-        // Update Categories based on loaded transactions to ensure consistency
         const newIncomeCats = [...incomeCategories];
         const newExpenseCats = [...expenseCategories];
         const incomeIds = new Set(newIncomeCats.map(c => c.id));
