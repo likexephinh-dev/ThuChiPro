@@ -1,0 +1,5 @@
+{
+  "name": "Quản Lý Thu Chi Thông Minh",
+  "description": "Một ứng dụng web hiện đại giúp bạn quản lý thu chi hiệu quả. Theo dõi giao dịch, trực quan hóa dữ liệu bằng biểu đồ, tạo báo cáo tùy chỉnh theo tháng hoặc danh mục, và xuất dữ liệu ra CSV để phân tích sâu hơn.",
+  "requestFramePermissions": []
+}
