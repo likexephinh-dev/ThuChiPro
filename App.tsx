@@ -237,18 +237,34 @@ export default function App(): React.ReactElement {
     
     setIsSyncing(true);
     try {
-      // Thêm timestamp để tránh cache
       const timestamp = new Date().getTime();
-      const response = await fetch(`${GOOGLE_SCRIPT_URL}?t=${timestamp}`, {
+      // Loại bỏ headers và giữ mode 'cors' để đọc dữ liệu.
+      // GET requests thường ít bị chặn CORS hơn POST nếu server trả về headers đúng.
+      const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=read&t=${timestamp}`, {
         method: 'GET',
         mode: 'cors',
         credentials: 'omit'
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
       }
-      const result = await response.json();
+
+      // Đọc response dưới dạng text trước để kiểm tra xem có phải HTML lỗi không
+      const textResult = await response.text();
+      
+      // Nếu response bắt đầu bằng '<', khả năng cao là trang HTML báo lỗi của Google (do chưa share quyền Anyone)
+      if (textResult.trim().startsWith('<')) {
+        console.error("Server returned HTML instead of JSON:", textResult);
+        throw new Error("Lỗi cấu hình Backend: Server trả về HTML thay vì JSON. Vui lòng kiểm tra lại quyền truy cập (Deploy as 'Anyone') trong Google Apps Script.");
+      }
+
+      let result;
+      try {
+        result = JSON.parse(textResult);
+      } catch (e) {
+        throw new Error("Dữ liệu trả về bị lỗi định dạng JSON.");
+      }
       
       if (result.status === 'success') {
         const loadedTransactions: Transaction[] = result.data;
@@ -277,9 +293,9 @@ export default function App(): React.ReactElement {
         setIncomeCategories(newIncomeCats);
         setExpenseCategories(newExpenseCats);
         
-        alert('Đã tải dữ liệu thành công từ Google Sheet!');
+        alert(`Đã tải thành công ${loadedTransactions.length} giao dịch từ Google Sheet!`);
       } else {
-        throw new Error(result.message || 'Lỗi không xác định');
+        throw new Error(result.message || 'Lỗi không xác định từ server');
       }
     } catch (error) {
       console.error("Load Error:", error);
