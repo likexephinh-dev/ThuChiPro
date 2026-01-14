@@ -1,12 +1,12 @@
 
 /*************************************************
- * 1. KẾT NỐI SUPABASE
+ * 1. KẾT NỐI SUPABASE (ĐỔI TÊN BIẾN)
  *************************************************/
 
 const SUPABASE_URL = 'https://ddumqdktlcyxwdsvefkl.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_JOHngrHodZvJJ9IYg7mIEA_a-QTXN_G'
 
-const supabase = window.supabase.createClient(
+const db = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 )
@@ -26,24 +26,14 @@ async function addTransaction() {
     return
   }
 
-  const { error } = await supabase
+  const { error } = await db
     .from('transactions')
-    .insert([
-      {
-        amount,
-        type,
-        category,
-        description
-      }
-    ])
+    .insert([{ amount, type, category, description }])
 
   if (error) {
-    alert('❌ Lỗi khi thêm dữ liệu')
+    alert('❌ Lỗi: ' + error.message)
     console.error(error)
   } else {
-    document.getElementById('amount').value = ''
-    document.getElementById('category').value = ''
-    document.getElementById('description').value = ''
     loadTransactions()
   }
 }
@@ -53,7 +43,7 @@ async function addTransaction() {
  *************************************************/
 
 async function loadTransactions() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('transactions')
     .select('*')
     .order('date', { ascending: false })
@@ -73,14 +63,14 @@ async function loadTransactions() {
       | ${item.amount.toLocaleString()} đ
       <br/>
       ${item.category || 'Không danh mục'}
-      ${item.description ? ` - ${item.description}` : ''}
+      ${item.description ? ' - ' + item.description : ''}
     `
     list.appendChild(li)
   })
 }
 
 /*************************************************
- * 4. LOAD DỮ LIỆU KHI MỞ TRANG
+ * 4. LOAD KHI MỞ TRANG
  *************************************************/
 
 document.addEventListener('DOMContentLoaded', loadTransactions)
