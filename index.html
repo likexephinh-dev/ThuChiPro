@@ -89,6 +89,34 @@
       border-bottom: 1px solid #ddd;
       padding: 8px 0;
     }
+      /* ===== SUMMARY ===== */
+      .summary {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .box {
+        flex: 1;
+        background: #ffffff;
+        padding: 12px;
+        border-radius: 12px;
+        text-align: center;
+        font-size: 13px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      }
+
+      .income {
+        color: #16a34a;
+      }
+
+      .expense {
+        color: #dc2626;
+      }
+
+      .balance {
+        color: #2563eb;
+      }
   </style>
 </head>
 
@@ -121,7 +149,23 @@
       <h3>📋 Danh sách giao dịch</h3>
       <ul id="transaction-list"></ul>
     </div>
+    <!-- KHỐI TỔNG (SUMMARY) -->
+    <div class="summary">
+      <div class="box income">
+        Thu<br />
+        <strong><span id="total-income">0</span> đ</strong>
+      </div>
 
+      <div class="box expense">
+        Chi<br />
+        <strong><span id="total-expense">0</span> đ</strong>
+      </div>
+
+      <div class="box balance">
+        Số dư<br />
+        <strong><span id="balance">0</span> đ</strong>
+      </div>
+    </div>
   </div>
 
   <!-- SCRIPT -->

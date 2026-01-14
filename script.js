@@ -56,17 +56,36 @@ async function loadTransactions() {
   const list = document.getElementById('transaction-list')
   list.innerHTML = ''
 
+  let totalIncome = 0
+  let totalExpense = 0
+
   data.forEach(item => {
+    const amount = Number(item.amount)
+
+    if (item.type === 'income') {
+      totalIncome += amount
+    } else {
+      totalExpense += amount
+    }
+
     const li = document.createElement('li')
     li.innerHTML = `
       <strong>${item.type === 'income' ? '➕ Thu' : '➖ Chi'}</strong>
-      | ${item.amount.toLocaleString()} đ
-      <br/>
-      ${item.category || 'Không danh mục'}
-      ${item.description ? ' - ' + item.description : ''}
+      - ${amount.toLocaleString()} đ
+      <br />
+      <small>${item.category || ''} ${item.description || ''}</small>
     `
     list.appendChild(li)
   })
+
+  document.getElementById('total-income').textContent =
+    totalIncome.toLocaleString()
+
+  document.getElementById('total-expense').textContent =
+    totalExpense.toLocaleString()
+
+  document.getElementById('balance').textContent =
+    (totalIncome - totalExpense).toLocaleString()
 }
 
 /*************************************************
