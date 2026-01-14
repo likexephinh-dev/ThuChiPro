@@ -36,48 +36,49 @@ async function addTransaction() {
   // Actually, simplistic approach: append T00:00:00 or similar.
   // Better: Create date object from input.
   const date = dateInput ? new Date(dateInput).toISOString() : new Date().toISOString()
-  alert('Vui lòng nhập số tiền')
-  return
-}
-
-// UPDATE Mode
-if (editingTransactionId) {
-  const { error } = await db
-    .from('transactions')
-    .update({ amount, type, category, description, date })
-    .eq('id', editingTransactionId)
-
-  if (error) {
-    alert(error.message)
+  if (!amount || amount <= 0) {
+    alert('Vui lòng nhập số tiền')
     return
   }
 
-  editingTransactionId = null
-  document.getElementById('save-btn').textContent = 'Thêm giao dịch'
-}
-// INSERT Mode
-else {
-  const { error } = await db.from('transactions').insert([
-    { amount, type, category, description, date }
-  ])
+  // UPDATE Mode
+  if (editingTransactionId) {
+    const { error } = await db
+      .from('transactions')
+      .update({ amount, type, category, description, date })
+      .eq('id', editingTransactionId)
 
-  if (error) {
-    alert(error.message)
-    return
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    editingTransactionId = null
+    document.getElementById('save-btn').textContent = 'Thêm giao dịch'
   }
-}
+  // INSERT Mode
+  else {
+    const { error } = await db.from('transactions').insert([
+      { amount, type, category, description, date }
+    ])
 
-// Reset form
-document.getElementById('amount').value = ''
-document.getElementById('category').value = 'Khác' // simplistic reset, better to trigger renderCategories
-document.getElementById('description').value = ''
-document.getElementById('type').value = 'income' // Reset type default
-document.getElementById('date').value = new Date().toISOString().slice(0, 10) // Reset to today
+    if (error) {
+      alert(error.message)
+      return
+    }
+  }
 
-// Trigger type change to reset categories correctly
-document.getElementById('type').dispatchEvent(new Event('change'))
+  // Reset form
+  document.getElementById('amount').value = ''
+  document.getElementById('category').value = 'Khác' // simplistic reset, better to trigger renderCategories
+  document.getElementById('description').value = ''
+  document.getElementById('type').value = 'income' // Reset type default
+  document.getElementById('date').value = new Date().toISOString().slice(0, 10) // Reset to today
 
-await fetchTransactions()
+  // Trigger type change to reset categories correctly
+  document.getElementById('type').dispatchEvent(new Event('change'))
+
+  await fetchTransactions()
 }
 
 function editTransaction(id) {
@@ -490,53 +491,7 @@ window.onclick = function (event) {
   }
 }
 
-function renameCategory() {
-  const oldName = prompt('Nhập tên danh mục cần sửa (chính xác):')
-  if (!categories.includes(oldName)) {
-    alert('Không tìm thấy danh mục này.')
-    return
-  }
 
-  const newName = prompt('Nhập tên mới:', oldName)
-  if (!newName || newName === oldName) return
-
-  if (categories.includes(newName)) {
-    alert('Tên danh mục mới đã tồn tại.')
-    return
-  }
-
-  // Update categories array
-  const index = categories.indexOf(oldName)
-  categories[index] = newName
-  localStorage.setItem('categories', JSON.stringify(categories))
-
-  // Update all transactions with this category locally
-  allTransactions.forEach(t => {
-    if (t.category === oldName) t.category = newName
-  })
-
-  // Update UI
-  renderCategories()
-  document.getElementById('category').value = newName
-  render() // Re-render list & chart
-
-  // Update DB (Advanced/Bonus - doing basic update for now to keep sync)
-  updateCategoryInDB(oldName, newName)
-}
-
-function deleteCategory() {
-  const name = prompt('Nhập tên danh mục cần xoá (chính xác):')
-  if (!categories.includes(name)) {
-    alert('Không tìm thấy danh mục này.')
-    return
-  }
-
-  if (!confirm(`Bạn có chắc muốn xoá danh mục "${name}"? Các giao dịch thuộc danh mục này sẽ hiển thị là trống hoặc bạn cần cập nhật lại.`)) return
-
-  categories = categories.filter(c => c !== name)
-  localStorage.setItem('categories', JSON.stringify(categories))
-  renderCategories()
-}
 
 async function updateCategoryInDB(oldName, newName) {
   // Update in Supabase
