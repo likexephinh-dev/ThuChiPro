@@ -54,13 +54,16 @@ async function loadTransactions() {
       .order('date', { ascending: false })
 
     if (selectedMonth) {
-      const startDate = selectedMonth + '-01'
-      const endDate = selectedMonth + '-31'
+      const [year, month] = selectedMonth.split('-').map(Number)
+
+      const startDate = new Date(year, month - 1, 1)
+      const endDate = new Date(year, month, 1) // tháng kế tiếp
 
       query = query
-        .gte('date', startDate)
-        .lte('date', endDate)
+        .gte('date', startDate.toISOString())
+        .lt('date', endDate.toISOString())
     }
+
 
     const { data, error } = await query
 
