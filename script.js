@@ -59,9 +59,19 @@ async function loadTransactions() {
       const startDate = new Date(year, month - 1, 1)
       const endDate = new Date(year, month, 1) // tháng kế tiếp
 
-      query = query
-        .gte('date', startDate.toISOString())
-        .lt('date', endDate.toISOString())
+        const { data, error } = await db
+          .from('transactions')
+          .select('*')
+          .order('date', { ascending: false })
+        let filteredData = data
+
+        if (selectedMonth) {
+          filteredData = data.filter(item => {
+            const d = new Date(item.date)
+            const month = d.toISOString().slice(0, 7)
+            return month === selectedMonth
+          })
+        }
     }
 
 
@@ -78,7 +88,7 @@ async function loadTransactions() {
   let totalIncome = 0
   let totalExpense = 0
 
-  data.forEach(item => {
+    filteredData.forEach(item => {
     const amount = Number(item.amount)
 
     if (item.type === 'income') {
