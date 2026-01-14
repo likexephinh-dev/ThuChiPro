@@ -12,6 +12,7 @@ const db = window.supabase.createClient(
 let allTransactions = []
 let selectedMonth = null
 let myChart = null
+let trendChart = null
 let categories = []
 let editingTransactionId = null
 
@@ -48,7 +49,7 @@ async function addTransaction() {
   // INSERT Mode
   else {
     const { error } = await db.from('transactions').insert([
-      { amount, type, category, description }
+      { amount, type, category, description, date: new Date().toISOString() }
     ])
 
     if (error) {
@@ -161,7 +162,11 @@ function render() {
   document.getElementById('balance').textContent =
     (income - expense).toLocaleString()
 
-  updateChart(listData)
+      (income - expense).toLocaleString()
+
+  updateDoughnutChart(listData)
+  // Trend chart uses ALL data, not just selected month
+  updateTrendChart(allTransactions)
 }
 
 /*************** MONTH PICKER ****************/
@@ -171,22 +176,34 @@ document.getElementById('month-filter').addEventListener('change', e => {
 })
 
 /*************** CHART ****************/
-function updateChart(transactions) {
-  const ctx = document.getElementById('expense-chart').getContext('2d')
+/*************** CHART ****************/
+document.getElementById('chart-type-selector').addEventListener('change', () => {
+  render()
+})
 
-  // Filter expenses only
-  const expenses = transactions.filter(t => t.type === 'expense')
+function updateDoughnutChart(transactions) {
+  const ctx = document.getElementById('expense-chart').getContext('2d')
+  const chartType = document.getElementById('chart-type-selector').value // income | expense
+
+  // Filter based on selection
+  const filtered = transactions.filter(t => t.type === chartType)
 
   // Group by category
-  const categories = {}
-  expenses.forEach(t => {
+  const grouped = {}
+  filtered.forEach(t => {
     const cat = t.category || 'Khác'
-    categories[cat] = (categories[cat] || 0) + Number(t.amount)
+    grouped[cat] = (grouped[cat] || 0) + Number(t.amount)
   })
 
   // Prepare data
-  const labels = Object.keys(categories)
-  const data = Object.values(categories)
+  const labels = Object.keys(grouped)
+  const data = Object.values(grouped)
+
+  // Colors helper
+  const backgroundColors = [
+    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
+    '#C9CBCF', '#E7E9ED', '#76D7C4', '#F1948A', '#85C1E9', '#F7DC6F'
+  ]
 
   // Destroy old chart if exists
   if (myChart) {
@@ -199,28 +216,102 @@ function updateChart(transactions) {
     data: {
       labels: labels,
       datasets: [{
-        label: 'Chi tiêu',
+        label: chartType === 'income' ? 'Thu nhập' : 'Chi tiêu',
         data: data,
-        backgroundColor: [
-          '#FF6384',
-          '#36A2EB',
-          '#FFCE56',
-          '#4BC0C0',
-          '#9966FF',
-          '#FF9F40'
-        ],
+        backgroundColor: backgroundColors.slice(0, labels.length),
         hoverOffset: 4
       }]
     },
     options: {
       responsive: true,
       plugins: {
-        legend: {
-          position: 'bottom'
-        },
+        legend: { position: 'bottom' },
         title: {
           display: true,
-          text: 'Phân bố chi tiêu tháng này'
+          text: chartType === 'income' ? 'Phân bố Thu nhập' : 'Phân bố Chi tiêu'
+        }
+      }
+    }
+  })
+}
+
+function updateTrendChart(transactions) {
+  const ctx = document.getElementById('trend-chart').getContext('2d')
+
+  // Group by Month (YYYY-MM)
+  // We need all transactions, sorted by date
+  const sorted = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date))
+
+  // Extract unique months and aggregate
+  const monthlyData = {}
+
+  sorted.forEach(t => {
+    // If t.date is missing, skip or use 'Unknown'
+    if (!t.date) return
+
+    // date format assumption: YYYY-MM-DD or ISO string
+    // Let's safe parse
+    const month = t.date.substring(0, 7) // YYYY-MM
+
+    if (!monthlyData[month]) {
+      monthlyData[month] = { income: 0, expense: 0 }
+    }
+
+    const amt = Number(t.amount)
+    if (t.type === 'income') monthlyData[month].income += amt
+    else monthlyData[month].expense += amt
+  })
+
+  // Get labels (sorted months)
+  const labels = Object.keys(monthlyData).sort()
+  const incomeData = labels.map(m => monthlyData[m].income)
+  const expenseData = labels.map(m => monthlyData[m].expense)
+  const balanceData = labels.map(m => monthlyData[m].income - monthlyData[m].expense)
+
+  if (trendChart) {
+    trendChart.destroy()
+  }
+
+  trendChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Thu',
+          data: incomeData,
+          backgroundColor: '#16a34a',
+          order: 2
+        },
+        {
+          label: 'Chi',
+          data: expenseData,
+          backgroundColor: '#dc2626',
+          order: 3
+        },
+        {
+          label: 'Số dư',
+          data: balanceData,
+          type: 'line', // Mix chart type
+          borderColor: '#2563eb',
+          backgroundColor: '#2563eb',
+          borderWidth: 2,
+          fill: false,
+          tension: 0.1,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: 'So sánh Thu - Chi - Số dư theo tháng'
         }
       }
     }

@@ -310,9 +310,22 @@
     </div>
 
     <!-- BIỂU ĐỒ -->
+    <!-- BIỂU ĐỒ TRÒN -->
     <div class="card">
-      <h3>📊 Biểu đồ chi tiêu</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>📊 Phân bố</h3>
+        <select id="chart-type-selector" style="width: auto; margin: 0;">
+          <option value="expense">Chi tiêu</option>
+          <option value="income">Thu nhập</option>
+        </select>
+      </div>
       <canvas id="expense-chart"></canvas>
+    </div>
+
+    <!-- BIỂU ĐỒ CỘT (MONTHLY TREND) -->
+    <div class="card">
+      <h3>📈 Xu hướng theo tháng</h3>
+      <canvas id="trend-chart"></canvas>
     </div>
   </div>
 
