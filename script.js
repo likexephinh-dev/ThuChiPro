@@ -85,8 +85,13 @@ async function loadTransactions() {
         <div class="tx-amount">
           ${amount.toLocaleString()} đ
         </div>
-      `
 
+        <div class="tx-actions">
+          <button class="delete-btn" onclick="deleteTransaction(${item.id})">
+            ❌
+          </button>
+        </div>
+      `
       list.appendChild(li)
 
   })
@@ -106,3 +111,19 @@ async function loadTransactions() {
  *************************************************/
 
 document.addEventListener('DOMContentLoaded', loadTransactions)
+async function deleteTransaction(id) {
+  const confirmDelete = confirm('Bạn có chắc muốn xoá giao dịch này?')
+  if (!confirmDelete) return
+
+  const { error } = await db
+    .from('transactions')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    alert('❌ Lỗi khi xoá')
+    console.error(error)
+  } else {
+    loadTransactions()
+  }
+}
