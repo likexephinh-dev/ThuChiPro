@@ -11,6 +11,7 @@ import DateRangePicker from './components/DateRangePicker';
 import DailyTrendChart from './components/DailyTrendChart';
 import EditTransactionModal from './components/EditTransactionModal';
 import CategoryManagerModal from './components/CategoryManagerModal';
+import AddTransactionPage from './components/AddTransactionPage';
 import Sidebar from './components/Sidebar';
 import ReportsPage from './pages/ReportsPage';
 
@@ -20,7 +21,7 @@ export default function App(): React.ReactElement {
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
   const [incomeCategories, setIncomeCategories] = useLocalStorage<Category[]>('incomeCategories', INITIAL_INCOME_CATEGORIES);
   const [expenseCategories, setExpenseCategories] = useLocalStorage<Category[]>('expenseCategories', INITIAL_EXPENSE_CATEGORIES);
-  
+
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -28,6 +29,7 @@ export default function App(): React.ReactElement {
   const [activeView, setActiveView] = useState<'dashboard' | 'reports'>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
 
 
   const getMonthRange = () => {
@@ -58,9 +60,9 @@ export default function App(): React.ReactElement {
     const newTransaction: Transaction = { ...transaction, id: crypto.randomUUID() };
     setTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
   };
-  
+
   const updateTransaction = (updatedTransaction: Transaction) => {
-    setTransactions(prev => 
+    setTransactions(prev =>
       prev.map(t => (t.id === updatedTransaction.id ? updatedTransaction : t))
     );
     setEditingTransaction(null);
@@ -127,11 +129,11 @@ export default function App(): React.ReactElement {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-  
+
   const handleRestore = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-  
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -140,10 +142,10 @@ export default function App(): React.ReactElement {
           throw new Error('Định dạng tệp không hợp lệ.');
         }
         const restoredData = JSON.parse(text);
-        
+
         if (
-          !restoredData.transactions || 
-          !restoredData.incomeCategories || 
+          !restoredData.transactions ||
+          !restoredData.incomeCategories ||
           !restoredData.expenseCategories ||
           !Array.isArray(restoredData.transactions) ||
           !Array.isArray(restoredData.incomeCategories) ||
@@ -151,7 +153,7 @@ export default function App(): React.ReactElement {
         ) {
           throw new Error('Tệp sao lưu không hợp lệ hoặc bị hỏng.');
         }
-        
+
         if (window.confirm('Bạn có chắc chắn muốn khôi phục dữ liệu không? Tất cả dữ liệu hiện tại sẽ bị ghi đè.')) {
           setTransactions(restoredData.transactions);
           setIncomeCategories(restoredData.incomeCategories);
@@ -190,7 +192,7 @@ export default function App(): React.ReactElement {
 
     const BOM = "\uFEFF";
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-    
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -216,16 +218,16 @@ export default function App(): React.ReactElement {
         method: 'POST',
         mode: 'no-cors',
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: formData
       });
-      
+
       alert('Đã gửi yêu cầu đồng bộ. Vui lòng kiểm tra Google Sheet sau vài giây.');
-      
+
     } catch (error) {
-       console.error("Sync Error:", error);
-       alert('Lỗi kết nối: ' + (error instanceof Error ? error.message : String(error)));
+      console.error("Sync Error:", error);
+      alert('Lỗi kết nối: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsSyncing(false);
     }
@@ -233,7 +235,7 @@ export default function App(): React.ReactElement {
 
   const handleLoadFromCloud = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn tải dữ liệu từ Google Sheet? Dữ liệu hiện tại trên ứng dụng sẽ được cập nhật.")) return;
-    
+
     setIsSyncing(true);
     try {
       const timestamp = new Date().getTime();
@@ -242,13 +244,13 @@ export default function App(): React.ReactElement {
         mode: 'cors',
         credentials: 'omit'
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
       }
 
       const textResult = await response.text();
-      
+
       if (textResult.trim().startsWith('<')) {
         console.error("Server returned HTML instead of JSON:", textResult);
         throw new Error("Lỗi cấu hình Backend: Server trả về HTML thay vì JSON. Vui lòng kiểm tra lại quyền truy cập (Deploy as 'Anyone') trong Google Apps Script.");
@@ -260,33 +262,33 @@ export default function App(): React.ReactElement {
       } catch (e) {
         throw new Error("Dữ liệu trả về bị lỗi định dạng JSON.");
       }
-      
+
       if (result.status === 'success') {
         const loadedTransactions: Transaction[] = result.data;
-        
+
         const newIncomeCats = [...incomeCategories];
         const newExpenseCats = [...expenseCategories];
         const incomeIds = new Set(newIncomeCats.map(c => c.id));
         const expenseIds = new Set(newExpenseCats.map(c => c.id));
 
         loadedTransactions.forEach(t => {
-           if (t.type === 'income') {
-             if (!incomeIds.has(t.category.id)) {
-               newIncomeCats.push(t.category);
-               incomeIds.add(t.category.id);
-             }
-           } else if (t.type === 'expense') {
-             if (!expenseIds.has(t.category.id)) {
-               newExpenseCats.push(t.category);
-               expenseIds.add(t.category.id);
-             }
-           }
+          if (t.type === 'income') {
+            if (!incomeIds.has(t.category.id)) {
+              newIncomeCats.push(t.category);
+              incomeIds.add(t.category.id);
+            }
+          } else if (t.type === 'expense') {
+            if (!expenseIds.has(t.category.id)) {
+              newExpenseCats.push(t.category);
+              expenseIds.add(t.category.id);
+            }
+          }
         });
 
         setTransactions(loadedTransactions);
         setIncomeCategories(newIncomeCats);
         setExpenseCategories(newExpenseCats);
-        
+
         alert(`Đã tải thành công ${loadedTransactions.length} giao dịch từ Google Sheet!`);
       } else {
         throw new Error(result.message || 'Lỗi không xác định từ server');
@@ -298,7 +300,7 @@ export default function App(): React.ReactElement {
       setIsSyncing(false);
     }
   };
-  
+
   const filteredTransactions = useMemo(() => {
     return transactions
       .filter(t => {
@@ -334,96 +336,99 @@ export default function App(): React.ReactElement {
 
   const Dashboard = () => (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 flex flex-col gap-6">
-          <TransactionForm 
-            addTransaction={addTransaction}
-            incomeCategories={incomeCategories}
-            expenseCategories={expenseCategories}
-          />
+      <div className="lg:col-span-1 flex flex-col gap-6">
+        <button
+          onClick={() => setIsAddTransactionOpen(true)}
+          className="w-full bg-accent text-white py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-lg font-bold hover:bg-blue-600 transition-transform active:scale-95"
+        >
+          <span className="text-2xl">+</span> Quick Add
+        </button>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
+          <SummaryCard title="Số Dư" amount={balance} type="balance" />
+          <SummaryCard title="Tổng Thu" amount={totalIncome} type="income" />
+          <SummaryCard title="Tổng Chi" amount={totalExpense} type="expense" />
         </div>
+      </div>
 
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <DateRangePicker
-            startDate={dateRange.startDate}
-            endDate={dateRange.endDate}
-            onDateChange={handleDateChange}
-          />
+      <div className="lg:col-span-2 flex flex-col gap-6">
+        <DateRangePicker
+          startDate={dateRange.startDate}
+          endDate={dateRange.endDate}
+          onDateChange={handleDateChange}
+        />
 
-          <div className="bg-secondary p-4 rounded-lg shadow-lg">
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <button
-                onClick={() => setFilterType('all')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filterType === 'all' ? 'bg-accent text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-gray-700'
+        <div className="bg-secondary p-4 rounded-lg shadow-lg">
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'all' ? 'bg-accent text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-gray-700'
                 }`}
-              >
-                Tất cả
-              </button>
-              <button
-                onClick={() => setFilterType('income')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filterType === 'income' ? 'bg-income text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-gray-700'
+            >
+              Tất cả
+            </button>
+            <button
+              onClick={() => setFilterType('income')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'income' ? 'bg-income text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-gray-700'
                 }`}
-              >
-                Thu
-              </button>
-              <button
-                onClick={() => setFilterType('expense')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filterType === 'expense' ? 'bg-expense text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-gray-700'
+            >
+              Thu
+            </button>
+            <button
+              onClick={() => setFilterType('expense')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'expense' ? 'bg-expense text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-gray-700'
                 }`}
+            >
+              Chi
+            </button>
+            <div className="w-full sm:w-auto flex-grow sm:flex-grow-0 sm:min-w-[200px]">
+              <select
+                id="category-filter"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                disabled={filterType === 'all'}
+                className="w-full bg-primary border border-gray-600 rounded-md p-2 text-sm focus:ring-accent focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Lọc theo danh mục"
               >
-                Chi
-              </button>
-              <div className="w-full sm:w-auto flex-grow sm:flex-grow-0 sm:min-w-[200px]">
-                <select
-                  id="category-filter"
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  disabled={filterType === 'all'}
-                  className="w-full bg-primary border border-gray-600 rounded-md p-2 text-sm focus:ring-accent focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Lọc theo danh mục"
-                >
-                  <option value="all">Tất cả danh mục</option>
-                  {categoryFilterOptions.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
+                <option value="all">Tất cả danh mục</option>
+                {categoryFilterOptions.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <SummaryCard title="Số Dư" amount={balance} type="balance"/>
-            <SummaryCard title="Tổng Thu" amount={totalIncome} type="income" />
-            <SummaryCard title="Tổng Chi" amount={totalExpense} type="expense" />
-          </div>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-             <CategoryChart transactions={filteredTransactions} />
-             <DailyTrendChart transactions={filteredTransactions} startDate={dateRange.startDate} endDate={dateRange.endDate} />
-          </div>
-          <TransactionList 
-            transactions={filteredTransactions} 
-            deleteTransaction={deleteTransaction} 
-            onEditTransaction={setEditingTransaction}
-          />
         </div>
+
+        <div className="hidden">
+          {/* Hid old summary grid */}
+          <SummaryCard title="Số Dư" amount={balance} type="balance" />
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <CategoryChart transactions={filteredTransactions} />
+          <DailyTrendChart transactions={filteredTransactions} startDate={dateRange.startDate} endDate={dateRange.endDate} />
+        </div>
+        <TransactionList
+          transactions={filteredTransactions}
+          deleteTransaction={deleteTransaction}
+          onEditTransaction={setEditingTransaction}
+        />
+      </div>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-primary font-sans text-text-primary flex">
-       <Sidebar 
-          activeView={activeView} 
-          setActiveView={setActiveView} 
-          isSidebarOpen={isSidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
-        />
-      
+      <Sidebar
+        activeView={activeView}
+        setActiveView={setActiveView}
+        isSidebarOpen={isSidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
+      />
+
       <div className="flex-1 flex flex-col transition-all duration-300 lg:ml-64">
         <header className="bg-secondary p-4 shadow-md flex items-center">
-           <button onClick={() => setSidebarOpen(true)} className="lg:hidden mr-4 p-2 rounded-md hover:bg-primary">
+          <button onClick={() => setSidebarOpen(true)} className="lg:hidden mr-4 p-2 rounded-md hover:bg-primary">
             <MenuIcon />
           </button>
           <h1 className="text-2xl font-bold text-center text-text-primary">
@@ -459,6 +464,15 @@ export default function App(): React.ReactElement {
         onLoadFromCloud={handleLoadFromCloud}
         isSyncing={isSyncing}
       />
+
+      {isAddTransactionOpen && (
+        <AddTransactionPage
+          onClose={() => setIsAddTransactionOpen(false)}
+          onSave={addTransaction}
+          incomeCategories={incomeCategories}
+          expenseCategories={expenseCategories}
+        />
+      )}
     </div>
   );
 }
