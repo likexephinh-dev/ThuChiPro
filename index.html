@@ -281,14 +281,12 @@
 
       <button id="save-btn" onclick="addTransaction()">Thêm giao dịch</button>
     </div>
-    <!-- CHỌN THÁNG -->
-    <div class="card">
-      <h3>📅 Chọn tháng</h3>
-      <input type="month" id="month-filter" />
-    </div>
     <!-- CARD: DANH SÁCH -->
     <div class="card">
-      <h3>📋 Danh sách giao dịch</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="margin: 0;">📋 Danh sách giao dịch</h3>
+        <input type="month" id="month-filter" style="width: auto; margin: 0; padding: 6px;" />
+      </div>
       <ul id="transaction-list"></ul>
     </div>
     <!-- KHỐI TỔNG (SUMMARY) -->

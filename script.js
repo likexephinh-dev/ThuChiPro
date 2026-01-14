@@ -127,7 +127,8 @@ function render() {
 
   if (selectedMonth) {
     listData = allTransactions.filter(t => {
-      const m = new Date(t.date).toISOString().slice(0, 7)
+      if (!t.date) return false // Skip items without date
+      const m = t.date.substring(0, 7) // Safe slicing YYYY-MM
       return m === selectedMonth
     })
   }
