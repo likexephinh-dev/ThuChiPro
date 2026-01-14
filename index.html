@@ -277,7 +277,15 @@
         <button onclick="manageCategories()" style="width: 40px; margin-top: 8px; padding: 10px;"
           title="Quản lý danh mục">⚙️</button>
       </div>
-      <input id="description" placeholder="Ghi chú" />
+      <div class="input-group">
+        <label>Mô tả</label>
+        <input type="text" id="description" placeholder="Ví dụ: Ăn trưa..." />
+      </div>
+
+      <div class="input-group">
+        <label>Ngày</label>
+        <input type="date" id="date" />
+      </div>
 
       <button id="save-btn" onclick="addTransaction()">Thêm giao dịch</button>
     </div>

@@ -28,47 +28,56 @@ async function addTransaction() {
   const type = document.getElementById('type').value
   const category = document.getElementById('category').value
   const description = document.getElementById('description').value
+  const dateInput = document.getElementById('date').value
 
-  if (!amount || amount <= 0) {
-    alert('Vui lòng nhập số tiền')
+  // Use selected date or fallback to now (though input should be defaulted)
+  // Ensure we keep time component if possible? No, input[date] is just YYYY-MM-DD.
+  // We can attach current time or 00:00:00. Let's use 12:00 to avoid timezone edge cases jumping days.
+  // Actually, simplistic approach: append T00:00:00 or similar.
+  // Better: Create date object from input.
+  const date = dateInput ? new Date(dateInput).toISOString() : new Date().toISOString()
+  alert('Vui lòng nhập số tiền')
+  return
+}
+
+// UPDATE Mode
+if (editingTransactionId) {
+  const { error } = await db
+    .from('transactions')
+    .update({ amount, type, category, description, date })
+    .eq('id', editingTransactionId)
+
+  if (error) {
+    alert(error.message)
     return
   }
 
-  // UPDATE Mode
-  if (editingTransactionId) {
-    const { error } = await db
-      .from('transactions')
-      .update({ amount, type, category, description })
-      .eq('id', editingTransactionId)
+  editingTransactionId = null
+  document.getElementById('save-btn').textContent = 'Thêm giao dịch'
+}
+// INSERT Mode
+else {
+  const { error } = await db.from('transactions').insert([
+    { amount, type, category, description, date }
+  ])
 
-    if (error) {
-      alert(error.message)
-      return
-    }
-
-    editingTransactionId = null
-    editingTransactionId = null
-    document.getElementById('save-btn').textContent = 'Thêm giao dịch'
+  if (error) {
+    alert(error.message)
+    return
   }
-  // INSERT Mode
-  else {
-    const { error } = await db.from('transactions').insert([
-      { amount, type, category, description, date: new Date().toISOString() }
-    ])
+}
 
-    if (error) {
-      alert(error.message)
-      return
-    }
-  }
+// Reset form
+document.getElementById('amount').value = ''
+document.getElementById('category').value = 'Khác' // simplistic reset, better to trigger renderCategories
+document.getElementById('description').value = ''
+document.getElementById('type').value = 'income' // Reset type default
+document.getElementById('date').value = new Date().toISOString().slice(0, 10) // Reset to today
 
-  // Reset form
-  document.getElementById('amount').value = ''
-  document.getElementById('category').value = ''
-  document.getElementById('description').value = ''
-  document.getElementById('type').value = 'income' // Reset type default
+// Trigger type change to reset categories correctly
+document.getElementById('type').dispatchEvent(new Event('change'))
 
-  await fetchTransactions()
+await fetchTransactions()
 }
 
 function editTransaction(id) {
@@ -77,10 +86,17 @@ function editTransaction(id) {
 
   document.getElementById('amount').value = t.amount
   document.getElementById('type').value = t.type
+  // Trigger change so category list updates
+  renderCategories(t.type)
+
   document.getElementById('category').value = t.category || ''
   document.getElementById('description').value = t.description || ''
 
-  editingTransactionId = id
+  // Set date input
+  if (t.date) {
+    document.getElementById('date').value = t.date.slice(0, 10) // YYYY-MM-DD
+  }
+
   editingTransactionId = id
   document.getElementById('save-btn').textContent = '💾 Lưu thay đổi'
 
@@ -557,10 +573,12 @@ async function updateCategoryInDB(oldName, newName) {
     localStorage.setItem('categories', JSON.stringify(categories))
   }
 
-  // Default render for 'income' (since default selected is likely first option, but check HTML)
-  // Check what is selected in HTML default
+  // Default render for 'income'
   const defaultType = document.getElementById('type').value || 'income'
   renderCategories(defaultType)
+
+  // Set default date to today
+  document.getElementById('date').value = new Date().toISOString().slice(0, 10)
 
   const now = new Date().toISOString().slice(0, 7)
   document.getElementById('month-filter').value = now
