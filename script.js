@@ -68,14 +68,27 @@ async function loadTransactions() {
       totalExpense += amount
     }
 
-    const li = document.createElement('li')
-    li.innerHTML = `
-      <strong>${item.type === 'income' ? '➕ Thu' : '➖ Chi'}</strong>
-      - ${amount.toLocaleString()} đ
-      <br />
-      <small>${item.category || ''} ${item.description || ''}</small>
-    `
-    list.appendChild(li)
+      const li = document.createElement('li')
+      li.className = `transaction ${item.type}`
+
+      li.innerHTML = `
+        <div class="tx-left">
+          <div class="tx-type">
+            ${item.type === 'income' ? '➕ Thu' : '➖ Chi'}
+          </div>
+          <div class="tx-meta">
+            ${item.category || 'Không danh mục'}
+            ${item.description ? ' – ' + item.description : ''}
+          </div>
+        </div>
+
+        <div class="tx-amount">
+          ${amount.toLocaleString()} đ
+        </div>
+      `
+
+      list.appendChild(li)
+
   })
 
   document.getElementById('total-income').textContent =
