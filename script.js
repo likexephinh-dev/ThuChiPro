@@ -10,8 +10,13 @@ const db = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 )
+let selectedMonth = null
+document.getElementById('month-filter')
+  .addEventListener('change', (e) => {
+    selectedMonth = e.target.value
+    loadTransactions()
+  })
 
-/*************************************************
  * 2. THÊM GIAO DỊCH
  *************************************************/
 
@@ -43,10 +48,21 @@ async function addTransaction() {
  *************************************************/
 
 async function loadTransactions() {
-  const { data, error } = await db
-    .from('transactions')
-    .select('*')
-    .order('date', { ascending: false })
+    let query = db
+      .from('transactions')
+      .select('*')
+      .order('date', { ascending: false })
+
+    if (selectedMonth) {
+      const startDate = selectedMonth + '-01'
+      const endDate = selectedMonth + '-31'
+
+      query = query
+        .gte('date', startDate)
+        .lte('date', endDate)
+    }
+
+    const { data, error } = await query
 
   if (error) {
     console.error(error)
@@ -127,3 +143,12 @@ async function deleteTransaction(id) {
     loadTransactions()
   }
 }
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date()
+  const month = now.toISOString().slice(0, 7)
+
+  document.getElementById('month-filter').value = month
+  selectedMonth = month
+
+  loadTransactions()
+})
