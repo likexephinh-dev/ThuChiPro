@@ -337,6 +337,13 @@
         <span class="close-modal" onclick="closeCategoryModal()">&times;</span>
       </div>
 
+      <div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 16px; font-weight: bold;">
+        <label style="cursor: pointer;"><input type="radio" name="cat-modal-type" value="expense" checked
+            onclick="switchModalType('expense')"> Chi tiêu</label>
+        <label style="cursor: pointer;"><input type="radio" name="cat-modal-type" value="income"
+            onclick="switchModalType('income')"> Thu nhập</label>
+      </div>
+
       <div style="display: flex; gap: 8px; margin-bottom: 16px;">
         <input id="new-cat-input" placeholder="Tên danh mục mới..." style="margin: 0;" />
         <button onclick="addCategoryInModal()" style="width: auto; margin: 0; white-space: nowrap;">Thêm</button>

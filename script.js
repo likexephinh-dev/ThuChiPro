@@ -13,10 +13,14 @@ let allTransactions = []
 let selectedMonth = null
 let myChart = null
 let trendChart = null
-let categories = []
+let categories = { income: [], expense: [] }
 let editingTransactionId = null
+let currentModalType = 'expense'
 
-const DEFAULT_CATEGORIES = ['Ăn uống', 'Di chuyển', 'Nhà cửa', 'Vui chơi', 'Sức khoẻ', 'Lương', 'Thưởng', 'Khác']
+const DEFAULT_CATEGORIES = {
+  expense: ['Ăn uống', 'Di chuyển', 'Nhà cửa', 'Vui chơi', 'Sức khoẻ', 'Khác'],
+  income: ['Lương', 'Thưởng', 'Đầu tư', 'Khác']
+}
 
 /*************** ADD ****************/
 async function addTransaction() {
@@ -148,10 +152,8 @@ function render() {
       </div>
       <div class="tx-amount">${amount.toLocaleString()} đ</div>
       <div class="tx-actions">
-      <div class="tx-actions">
         <button class="delete-btn" onclick="editTransaction('${t.id}')" style="margin-right: 8px;">✏️</button>
         <button class="delete-btn" onclick="deleteTransaction('${t.id}')">❌</button>
-      </div>
       </div>
     `
     list.appendChild(li)
@@ -161,8 +163,6 @@ function render() {
   document.getElementById('total-expense').textContent = expense.toLocaleString()
   document.getElementById('balance').textContent =
     (income - expense).toLocaleString()
-
-      (income - expense).toLocaleString()
 
   updateDoughnutChart(listData)
   // Trend chart uses ALL data, not just selected month
@@ -298,7 +298,10 @@ function updateTrendChart(transactions) {
           borderWidth: 2,
           fill: false,
           tension: 0.1,
-          order: 1
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#2563eb',
+          order: 0
         }
       ]
     },
@@ -321,11 +324,18 @@ function updateTrendChart(transactions) {
 
 
 /*************** CATEGORIES ****************/
-function renderCategories() {
+document.getElementById('type').addEventListener('change', (e) => {
+  renderCategories(e.target.value)
+})
+
+function renderCategories(type) {
   const select = document.getElementById('category')
+  const currentType = type || document.getElementById('type').value
   select.innerHTML = ''
 
-  categories.forEach(c => {
+  const list = categories[currentType] || []
+
+  list.forEach(c => {
     const option = document.createElement('option')
     option.value = c
     option.text = c
@@ -334,27 +344,34 @@ function renderCategories() {
 }
 
 function promptAddCategory() {
-  const name = prompt('Nhập tên danh mục mới:')
+  // Shortcut to add to current visible type
+  const type = document.getElementById('type').value
+  const name = prompt(`Nhập tên danh mục ${type === 'income' ? 'Thu' : 'Chi'} mới:`)
   if (name) {
-    addCategory(name)
+    addCategory(name, type)
   }
 }
 
-function addCategory(name) {
-  if (categories.includes(name)) {
+function addCategory(name, type) {
+  if (categories[type].includes(name)) {
     alert('Danh mục đã tồn tại')
     return
   }
 
-  categories.push(name)
+  categories[type].push(name)
   localStorage.setItem('categories', JSON.stringify(categories))
-  renderCategories()
+  renderCategories(type)
 
   // Select the new category
   document.getElementById('category').value = name
 }
 
 function manageCategories() {
+  // Sync modal type with current main form type
+  currentModalType = document.getElementById('type').value
+  // Update radio button
+  document.querySelector(`input[name="cat-modal-type"][value="${currentModalType}"]`).checked = true
+
   openCategoryModal()
 }
 
@@ -370,17 +387,20 @@ function closeCategoryModal() {
   renderCategories() // Refresh main dropdown
 }
 
+function switchModalType(type) {
+  currentModalType = type
+  renderCategoryListInModal()
+}
+
 function renderCategoryListInModal() {
   const list = document.getElementById('category-list-modal')
   list.innerHTML = ''
 
-  categories.forEach((cat, index) => {
+  const currentList = categories[currentModalType] || []
+
+  currentList.forEach((cat, index) => {
     const li = document.createElement('li')
     li.className = 'category-item'
-
-    // Check if being edited
-    // Simple approach: list items are static, we edit via a prompt or replace with input? 
-    // Let's make it inline editable for better UX
 
     li.innerHTML = `
       <span id="cat-text-${index}">${cat}</span>
@@ -398,12 +418,12 @@ function addCategoryInModal() {
   const name = input.value.trim()
 
   if (!name) return
-  if (categories.includes(name)) {
+  if (categories[currentModalType].includes(name)) {
     alert('Danh mục đã tồn tại')
     return
   }
 
-  categories.push(name)
+  categories[currentModalType].push(name)
   localStorage.setItem('categories', JSON.stringify(categories))
   input.value = ''
   renderCategoryListInModal()
@@ -412,26 +432,29 @@ function addCategoryInModal() {
 function deleteCategoryInline(name) {
   if (!confirm(`Xoá danh mục "${name}"?`)) return
 
-  categories = categories.filter(c => c !== name)
+  categories[currentModalType] = categories[currentModalType].filter(c => c !== name)
   localStorage.setItem('categories', JSON.stringify(categories))
   renderCategoryListInModal()
 }
 
 function renameCategoryInline(index) {
-  const oldName = categories[index]
+  const list = categories[currentModalType]
+  const oldName = list[index]
   const newName = prompt('Tên mới:', oldName)
 
   if (!newName || newName === oldName) return
-  if (categories.includes(newName)) {
+  if (list.includes(newName)) {
     alert('Tên danh mục đã tồn tại')
     return
   }
 
-  categories[index] = newName
+  categories[currentModalType][index] = newName
   localStorage.setItem('categories', JSON.stringify(categories))
 
-  // Update transactions locally
+  // Update transactions locally - a bit trickier since user might have same Cat name in both lists? 
+  // Assuming unique enough or just replace matching category string.
   allTransactions.forEach(t => {
+    // Only update if existing category matches AND type matches (optional, but safer)
     if (t.category === oldName) t.category = newName
   })
 
@@ -439,7 +462,7 @@ function renameCategoryInline(index) {
   updateCategoryInDB(oldName, newName)
 
   renderCategoryListInModal()
-  render() // Refresh main list to show new names
+  render()
 }
 
 // Close modal when clicking outside
@@ -516,12 +539,27 @@ async function updateCategoryInDB(oldName, newName) {
   // Load categories
   const savedCats = localStorage.getItem('categories')
   if (savedCats) {
-    categories = JSON.parse(savedCats)
+    const parsed = JSON.parse(savedCats)
+
+    if (Array.isArray(parsed)) {
+      // MIGRATION: Convert Array -> Object
+      categories = {
+        expense: parsed,
+        income: ['Lương', 'Thưởng', 'Đầu tư', 'Khác'] // Defaults for income
+      }
+      localStorage.setItem('categories', JSON.stringify(categories))
+    } else {
+      categories = parsed
+    }
   } else {
     categories = DEFAULT_CATEGORIES
     localStorage.setItem('categories', JSON.stringify(categories))
   }
-  renderCategories()
+
+  // Default render for 'income' (since default selected is likely first option, but check HTML)
+  // Check what is selected in HTML default
+  const defaultType = document.getElementById('type').value || 'income'
+  renderCategories(defaultType)
 
   const now = new Date().toISOString().slice(0, 7)
   document.getElementById('month-filter').value = now
