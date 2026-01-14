@@ -57,7 +57,7 @@ export default function App(): React.ReactElement {
   };
 
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = { ...transaction, id: crypto.randomUUID() };
+    const newTransaction: Transaction = { ...transaction, id: self.crypto && self.crypto.randomUUID ? self.crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36) };
     setTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
   };
 
@@ -69,7 +69,7 @@ export default function App(): React.ReactElement {
   };
 
   const addCategory = (category: Omit<Category, 'id'>) => {
-    const newCategory = { ...category, id: crypto.randomUUID() };
+    const newCategory = { ...category, id: self.crypto && self.crypto.randomUUID ? self.crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36) };
     if (newCategory.type === 'income') {
       setIncomeCategories(prev => [...prev, newCategory]);
     } else {
