@@ -5,6 +5,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Thu Chi Pro</title>
+    <script>
+        window.onerror = function (message, source, lineno, colno, error) {
+            var errorContainer = document.getElementById('global-error-display');
+            if (!errorContainer) {
+                errorContainer = document.createElement('div');
+                errorContainer.id = 'global-error-display';
+                errorContainer.style.position = 'fixed';
+                errorContainer.style.top = '0';
+                errorContainer.style.left = '0';
+                errorContainer.style.width = '100%';
+                errorContainer.style.background = '#ffebee';
+                errorContainer.style.color = '#c62828';
+                errorContainer.style.padding = '20px';
+                errorContainer.style.zIndex = '9999';
+                errorContainer.style.fontSize = '14px';
+                errorContainer.style.fontFamily = 'monospace';
+                errorContainer.style.whiteSpace = 'pre-wrap';
+                document.body.appendChild(errorContainer);
+            }
+            errorContainer.textContent = 'Error: ' + message + '\nSource: ' + source + ':' + lineno + ':' + colno + '\nStack: ' + (error ? error.stack : 'N/A');
+        };
+    </script>
 </head>
 
 <body>
