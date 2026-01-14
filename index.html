@@ -1,71 +1,74 @@
 <!DOCTYPE html>
 <html lang="vi">
-    <style>
-      /* NỀN GIỐNG AI STUDIO */
-      body {
-        margin: 0;
-        background: #f5f6f8;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont;
-      }
+<style>
+  /* NỀN GIỐNG AI STUDIO */
+  body {
+    margin: 0;
+    background: #f5f6f8;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont;
+  }
 
-      /* KHUNG APP Ở GIỮA */
-      .app {
-        max-width: 420px;
-        margin: 40px auto;
-        padding: 16px;
-      }
+  /* KHUNG APP Ở GIỮA */
+  .app {
+    max-width: 420px;
+    margin: 40px auto;
+    padding: 16px;
+  }
 
-      /* TIÊU ĐỀ */
-      h1 {
-        text-align: center;
-        font-size: 22px;
-        margin-bottom: 20px;
-      }
+  /* TIÊU ĐỀ */
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
 
-      /* CARD TRẮNG BO GÓC */
-      .card {
-        background: #ffffff;
-        border-radius: 14px;
-        padding: 16px;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-      }
+  /* CARD TRẮNG BO GÓC */
+  .card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
 
-      /* INPUT & BUTTON */
-      input, select, button {
-        width: 100%;
-        padding: 10px;
-        margin-top: 8px;
-        border-radius: 10px;
-        border: 1px solid #ddd;
-        font-size: 14px;
-      }
+  /* INPUT & BUTTON */
+  input,
+  select,
+  button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+  }
 
-      button {
-        background: #111;
-        color: white;
-        border: none;
-        cursor: pointer;
-      }
+  button {
+    background: #111;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
 
-      button:hover {
-        opacity: 0.9;
-      }
+  button:hover {
+    opacity: 0.9;
+  }
 
-      /* DANH SÁCH */
-      ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
+  /* DANH SÁCH */
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
 
-      li {
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
-        font-size: 14px;
-      }
-    </style>
-    <head>
+  li {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+  }
+</style>
+
+<head>
   <meta charset="UTF-8" />
   <title>Quản lý Thu Chi</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -76,103 +79,176 @@
       max-width: 600px;
       margin: 40px auto;
     }
-    input, select, button {
+
+    input,
+    select,
+    button {
       width: 100%;
       padding: 8px;
       margin: 6px 0;
     }
+
     ul {
       list-style: none;
       padding: 0;
     }
+
     li {
       border-bottom: 1px solid #ddd;
       padding: 8px 0;
     }
-      /* ===== SUMMARY ===== */
-      .summary {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 16px;
-      }
 
-      .box {
-        flex: 1;
-        background: #ffffff;
-        padding: 12px;
-        border-radius: 12px;
-        text-align: center;
-        font-size: 13px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-      }
+    /* ===== SUMMARY ===== */
+    .summary {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
 
-      .income {
-        color: #16a34a;
-      }
+    .box {
+      flex: 1;
+      background: #ffffff;
+      padding: 12px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
 
-      .expense {
-        color: #dc2626;
-      }
+    .income {
+      color: #16a34a;
+    }
 
-      .balance {
-        color: #2563eb;
-      }
-      /* ===== TRANSACTION CARD ===== */
-      .transaction {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        background: #f9fafb;
-        border-radius: 12px;
-        padding: 12px;
-        margin-bottom: 10px;
-      }
+    .expense {
+      color: #dc2626;
+    }
 
-      .transaction.income {
-        border-left: 4px solid #16a34a;
-      }
+    .balance {
+      color: #2563eb;
+    }
 
-      .transaction.expense {
-        border-left: 4px solid #dc2626;
-      }
+    /* ===== TRANSACTION CARD ===== */
+    .transaction {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
 
-      .tx-left {
-        font-size: 14px;
-      }
+    .transaction.income {
+      border-left: 4px solid #16a34a;
+    }
 
-      .tx-type {
-        font-weight: 600;
-      }
+    .transaction.expense {
+      border-left: 4px solid #dc2626;
+    }
 
-      .tx-meta {
-        font-size: 12px;
-        color: #666;
-        margin-top: 4px;
-      }
+    .tx-left {
+      font-size: 14px;
+    }
 
-      .tx-amount {
-        font-weight: 600;
-        font-size: 14px;
-        white-space: nowrap;
-      }
-      /* ===== DELETE BUTTON ===== */
-      .tx-actions {
-        display: flex;
-        align-items: center;
-        margin-left: 8px;
-      }
+    .tx-type {
+      font-weight: 600;
+    }
 
-      .delete-btn {
-        background: transparent;
-        border: none;
-        color: #999;
-        cursor: pointer;
-        font-size: 14px;
-      }
+    .tx-meta {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
 
-      .delete-btn:hover {
-        color: #dc2626;
-      }
+    .tx-amount {
+      font-weight: 600;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    /* ===== DELETE BUTTON ===== */
+    .tx-actions {
+      display: flex;
+      align-items: center;
+      margin-left: 8px;
+    }
+
+    .delete-btn {
+      background: transparent;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .delete-btn:hover {
+      color: #dc2626;
+    }
+
+    /* ===== MODAL ===== */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 14px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+    }
+
+    .close-modal {
+      cursor: pointer;
+      font-size: 24px;
+      color: #aaa;
+    }
+
+    .close-modal:hover {
+      color: #000;
+    }
+
+    .category-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .category-item input {
+      margin: 0;
+      padding: 6px;
+      width: 60%;
+    }
+
+    .cat-actions button {
+      width: auto;
+      margin: 0 0 0 4px;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
   </style>
 </head>
 
@@ -194,10 +270,16 @@
         <option value="expense">Chi</option>
       </select>
 
-      <input id="category" placeholder="Danh mục (VD: Ăn uống)" />
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <select id="category" style="margin-top: 8px; flex: 1;"></select>
+        <button onclick="promptAddCategory()" style="width: 40px; margin-top: 8px; padding: 10px;"
+          title="Thêm danh mục">+</button>
+        <button onclick="manageCategories()" style="width: 40px; margin-top: 8px; padding: 10px;"
+          title="Quản lý danh mục">⚙️</button>
+      </div>
       <input id="description" placeholder="Ghi chú" />
 
-      <button onclick="addTransaction()">Thêm giao dịch</button>
+      <button id="save-btn" onclick="addTransaction()">Thêm giao dịch</button>
     </div>
     <!-- CHỌN THÁNG -->
     <div class="card">
@@ -226,11 +308,37 @@
         <strong><span id="balance">0</span> đ</strong>
       </div>
     </div>
+
+    <!-- BIỂU ĐỒ -->
+    <div class="card">
+      <h3>📊 Biểu đồ chi tiêu</h3>
+      <canvas id="expense-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- MODAL QUẢN LÝ DANH MỤC -->
+  <div id="category-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚙️ Quản lý danh mục</h3>
+        <span class="close-modal" onclick="closeCategoryModal()">&times;</span>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <input id="new-cat-input" placeholder="Tên danh mục mới..." style="margin: 0;" />
+        <button onclick="addCategoryInModal()" style="width: auto; margin: 0; white-space: nowrap;">Thêm</button>
+      </div>
+
+      <div style="max-height: 300px; overflow-y: auto;">
+        <ul id="category-list-modal"></ul>
+      </div>
+    </div>
   </div>
 
   <!-- SCRIPT -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./script.js"></script>
 </body>
-</html>
 
+</html>
