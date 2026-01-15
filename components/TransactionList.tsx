@@ -1,49 +1,69 @@
-import React from 'react';
+import { Trash2 } from 'lucide-react';
 import { Transaction } from '../types';
-import { DeleteIcon, EditIcon } from './icons';
 
-interface TransactionListProps {
+interface Props {
   transactions: Transaction[];
-  deleteTransaction: (id: string) => void;
-  onEditTransaction: (transaction: Transaction) => void;
+  onDelete: (id: string) => void;
+  filterMonth: string;
+  onFilterChange: (month: string) => void;
 }
 
-export default function TransactionList({ transactions, deleteTransaction, onEditTransaction }: TransactionListProps): React.ReactElement {
+export default function TransactionList({ transactions, onDelete, filterMonth, onFilterChange }: Props) {
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    return new Intl.NumberFormat('vi-VN').format(amount);
   };
-  
+
   return (
-    <div className="bg-secondary p-6 rounded-lg shadow-lg">
-      <h2 className="text-xl font-bold mb-4">Lịch Sử Giao Dịch</h2>
-      {transactions.length === 0 ? (
-        <p className="text-text-secondary text-center py-8">Không có giao dịch nào trong khoảng thời gian này.</p>
-      ) : (
-        <div className="space-y-3 max-h-[520px] overflow-y-auto pr-2">
-          {transactions.map(t => (
-            <div key={t.id} className="flex items-center justify-between bg-primary p-3 rounded-md hover:bg-gray-800/50">
-              <div className="flex items-center gap-3">
-                 <div className={`w-2 h-10 rounded-full ${t.type === 'income' ? 'bg-income' : 'bg-expense'}`}></div>
-                 <div>
-                    <p className="font-semibold whitespace-pre-wrap">{t.description}</p>
-                    <p className="text-sm text-text-secondary">{t.category.name} - {new Date(t.date).toLocaleDateString('vi-VN')}</p>
-                 </div>
+    <div className="bg-secondary rounded-2xl p-6 shadow-lg">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-text-primary">📋 Danh sách giao dịch</h2>
+        <input
+          type="month"
+          value={filterMonth}
+          onChange={(e) => onFilterChange(e.target.value)}
+          className="px-3 py-1 bg-primary border border-gray-700 rounded-lg text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+        />
+      </div>
+
+      <div className="space-y-3 max-h-96 overflow-y-auto">
+        {transactions.length === 0 ? (
+          <p className="text-center text-text-secondary py-8">Chưa có giao dịch nào</p>
+        ) : (
+          transactions.map(tx => (
+            <div
+              key={tx.id}
+              className={`flex justify-between items-start p-4 rounded-xl border-l-4 ${
+                tx.type === 'income' 
+                  ? 'bg-primary border-income' 
+                  : 'bg-primary border-expense'
+              }`}
+            >
+              <div className="flex-1">
+                <div className="font-semibold text-text-primary">
+                  {tx.description || tx.category.name}
+                </div>
+                <div className="text-sm text-text-secondary mt-1">
+                  {tx.category.name} • {new Date(tx.date).toLocaleDateString('vi-VN')}
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <p className={`font-bold ${t.type === 'income' ? 'text-income' : 'text-expense'}`}>
-                  {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                </p>
-                <button onClick={() => onEditTransaction(t)} className="text-gray-500 hover:text-accent" aria-label={`Chỉnh sửa giao dịch ${t.description}`}>
-                  <EditIcon />
-                </button>
-                <button onClick={() => deleteTransaction(t.id)} className="text-gray-500 hover:text-expense" aria-label={`Xóa giao dịch ${t.description}`}>
-                  <DeleteIcon />
+              
+              <div className="flex items-center gap-3">
+                <span className={`font-bold text-lg ${
+                  tx.type === 'income' ? 'text-income' : 'text-expense'
+                }`}>
+                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)} đ
+                </span>
+                <button
+                  onClick={() => onDelete(tx.id)}
+                  className="text-text-secondary hover:text-expense transition-colors"
+                >
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 }
