@@ -201,39 +201,49 @@ document.getElementById('chart-type-selector').addEventListener('change', () => 
 
 function updateDoughnutChart(transactions) {
   const canvas = document.getElementById('expense-chart');
-  if (!canvas) return; // Kiểm tra an toàn nếu chưa load giao diện
+  if (!canvas) return;
 
   const ctx = canvas.getContext('2d');
   const chartType = document.getElementById('chart-type-selector').value; // income | expense
 
-  // 1. Lọc dữ liệu theo loại (Thu hoặc Chi)
+  // 1. Lọc dữ liệu theo loại
   const filtered = transactions.filter(t => t.type === chartType);
 
-  // 2. Nhóm tổng tiền theo danh mục
+  // 2. Nhóm tổng tiền
   const grouped = {};
   filtered.forEach(t => {
     const cat = t.category || 'Khác';
     grouped[cat] = (grouped[cat] || 0) + Number(t.amount);
   });
 
-  // 3. Chuyển đổi sang mảng và SẮP XẾP giảm dần (để danh mục lớn nhất hiện đầu tiên)
-  const sortedEntries = Object.entries(grouped).sort((a, b) => b[1] - a[1]);
-  const labels = sortedEntries.map(e => e[0]);
-  const data = sortedEntries.map(e => e[1]);
+  // 3. Sắp xếp giảm dần
+  let entries = Object.entries(grouped).sort((a, b) => b[1] - a[1]);
 
-  // 4. Xử lý màu sắc thông minh (Tự động lặp lại màu nếu danh mục > 12)
+  // === TỐI ƯU: GỘP NHÓM ĐỂ KHÔNG BỊ DÀI ===
+  // Nếu có quá 6 danh mục, chỉ lấy Top 5, còn lại gộp vào "Khác"
+  if (entries.length > 6) {
+    const top5 = entries.slice(0, 5);
+    const others = entries.slice(5);
+    const sumOthers = others.reduce((sum, item) => sum + item[1], 0);
+    
+    // Thêm mục "Khác" vào cuối
+    top5.push(['Khác', sumOthers]);
+    entries = top5;
+  }
+  // =========================================
+
+  const labels = entries.map(e => e[0]);
+  const data = entries.map(e => e[1]);
+
+  // Màu sắc
   const baseColors = [
     '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
     '#C9CBCF', '#E7E9ED', '#76D7C4', '#F1948A', '#85C1E9', '#F7DC6F'
   ];
   const backgroundColors = labels.map((_, i) => baseColors[i % baseColors.length]);
 
-  // 5. Hủy biểu đồ cũ trước khi vẽ mới để tránh lỗi chồng đè
-  if (myChart) {
-    myChart.destroy();
-  }
+  if (myChart) myChart.destroy();
 
-  // 6. Vẽ biểu đồ mới
   myChart = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -248,22 +258,25 @@ function updateDoughnutChart(transactions) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false, // Giúp biểu đồ không bị méo trên mobile
+      maintainAspectRatio: false, // QUAN TRỌNG: Cho phép chỉnh chiều cao div chứa
       plugins: {
-        legend: { position: 'bottom' },
+        legend: {
+            position: 'right', // Đưa chú thích sang phải cho gọn chiều dọc
+            labels: {
+                boxWidth: 12,
+                font: { size: 11 } // Chữ nhỏ lại
+            }
+        },
         title: {
           display: true,
-          text: chartType === 'income' ? 'Phân bố Thu nhập' : 'Phân bố Chi tiêu',
-          font: { size: 16 }
+          text: chartType === 'income' ? 'Top Thu Nhập' : 'Top Chi Tiêu',
+          padding: { bottom: 10 }
         },
         tooltip: {
           callbacks: {
-            // Định dạng số tiền sang VNĐ trong tooltip
             label: function(context) {
               let label = context.label || '';
-              if (label) {
-                label += ': ';
-              }
+              if (label) label += ': ';
               if (context.parsed !== null) {
                 label += new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(context.parsed);
               }
