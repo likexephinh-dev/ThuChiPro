@@ -1,478 +1,551 @@
-import React, { useState, useMemo, useEffect, ChangeEvent } from 'react';
-import { Transaction, Category, TransactionType } from './types';
-import useLocalStorage from './hooks/useLocalStorage';
-import { INITIAL_INCOME_CATEGORIES, INITIAL_EXPENSE_CATEGORIES } from './constants';
-import TransactionForm from './components/TransactionForm';
-import TransactionList from './components/TransactionList';
-import SummaryCard from './components/SummaryCard';
-import CategoryChart from './components/CategoryChart';
-import { MenuIcon } from './components/icons';
-import DateRangePicker from './components/DateRangePicker';
-import DailyTrendChart from './components/DailyTrendChart';
-import EditTransactionModal from './components/EditTransactionModal';
-import CategoryManagerModal from './components/CategoryManagerModal';
-import AddTransactionPage from './components/AddTransactionPage';
-import Sidebar from './components/Sidebar';
-import ReportsPage from './pages/ReportsPage';
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwO0qGDcYU866NphUgwr7gNcF9kMSQP87BoaaBZumQjl64fcck4PqQLisY98wYIfgJg/exec';
+import { useState, useEffect } from 'react';
+import {
+  ShoppingCart, Home, Popcorn, Car, Utensils, Heart,
+  ShoppingBag, Lightbulb, BookOpen, Gift, Plane, MoreHorizontal,
+  Plus, TrendingUp, TrendingDown, Calendar, X, Trash2, Settings,
+  PieChart, BarChart3
+} from 'lucide-react';
+import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-export default function App(): React.ReactElement {
-  const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
-  const [incomeCategories, setIncomeCategories] = useLocalStorage<Category[]>('incomeCategories', INITIAL_INCOME_CATEGORIES);
-  const [expenseCategories, setExpenseCategories] = useLocalStorage<Category[]>('expenseCategories', INITIAL_EXPENSE_CATEGORIES);
+// Types
+interface Category {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  icon: string;
+  color: string;
+}
 
-  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'dashboard' | 'reports'>('dashboard');
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+interface Transaction {
+  id: string;
+  description: string;
+  amount: number;
+  type: 'income' | 'expense';
+  category: Category;
+  date: string;
+}
 
+// Category Icons Map
+const categoryIcons: { [key: string]: any } = {
+  'shopping-cart': ShoppingCart,
+  'home': Home,
+  'popcorn': Popcorn,
+  'car': Car,
+  'utensils': Utensils,
+  'heart': Heart,
+  'shopping-bag': ShoppingBag,
+  'lightbulb': Lightbulb,
+  'book': BookOpen,
+  'gift': Gift,
+  'plane': Plane,
+  'more': MoreHorizontal
+};
 
-  const getMonthRange = () => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return {
-      startDate: firstDay.toISOString().split('T')[0],
-      endDate: lastDay.toISOString().split('T')[0],
-    };
-  };
+// Default Categories
+const defaultCategories: Category[] = [
+  { id: 'groceries', name: 'Groceries', type: 'expense', icon: 'shopping-cart', color: '#10b981' },
+  { id: 'rent', name: 'Rent', type: 'expense', icon: 'home', color: '#3b82f6' },
+  { id: 'entertainment', name: 'Entertainment', type: 'expense', icon: 'popcorn', color: '#a855f7' },
+  { id: 'transport', name: 'Transport', type: 'expense', icon: 'car', color: '#f59e0b' },
+  { id: 'eating-out', name: 'Eating Out', type: 'expense', icon: 'utensils', color: '#f97316' },
+  { id: 'health', name: 'Health', type: 'expense', icon: 'heart', color: '#ef4444' },
+  { id: 'shopping', name: 'Shopping', type: 'expense', icon: 'shopping-bag', color: '#ec4899' },
+  { id: 'utilities', name: 'Utilities', type: 'expense', icon: 'lightbulb', color: '#14b8a6' },
+  { id: 'education', name: 'Education', type: 'expense', icon: 'book', color: '#06b6d4' },
+  { id: 'gifts', name: 'Gifts', type: 'expense', icon: 'gift', color: '#d946ef' },
+  { id: 'travel', name: 'Travel', type: 'expense', icon: 'plane', color: '#8b7355' },
+  { id: 'other', name: 'Other', type: 'expense', icon: 'more', color: '#6b7280' },
+  { id: 'salary', name: 'Salary', type: 'income', icon: 'more', color: '#10b981' },
+  { id: 'freelance', name: 'Freelance', type: 'income', icon: 'more', color: '#3b82f6' },
+];
 
-  const [dateRange, setDateRange] = useState(getMonthRange());
+type ViewType = 'dashboard' | 'reports';
 
+function App() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories] = useState<Category[]>(defaultCategories);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [amount, setAmount] = useState('');
+  const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
+  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
+
+  // Load from localStorage
   useEffect(() => {
-    setFilterCategory('all');
-  }, [filterType]);
+    const saved = localStorage.getItem('transactions');
+    if (saved) setTransactions(JSON.parse(saved));
+  }, []);
 
-  const handleDateChange = (startDate: string, endDate: string) => {
-    if (startDate && endDate && startDate > endDate) {
-      setDateRange({ startDate: endDate, endDate: startDate });
-    } else {
-      setDateRange({ startDate, endDate });
-    }
+  // Save to localStorage
+  useEffect(() => {
+    localStorage.setItem('transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  const addTransaction = () => {
+    if (!amount || !selectedCategory) return;
+
+    const newTransaction: Transaction = {
+      id: `tx_${Date.now()}`,
+      description: selectedCategory.name,
+      amount: parseFloat(amount),
+      type: transactionType,
+      category: selectedCategory,
+      date: new Date().toISOString()
+    };
+
+    setTransactions([newTransaction, ...transactions]);
+    setShowAddModal(false);
+    setAmount('');
+    setSelectedCategory(null);
   };
-
-  const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = { ...transaction, id: self.crypto && self.crypto.randomUUID ? self.crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36) };
-    setTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-  };
-
-  const updateTransaction = (updatedTransaction: Transaction) => {
-    setTransactions(prev =>
-      prev.map(t => (t.id === updatedTransaction.id ? updatedTransaction : t))
-    );
-    setEditingTransaction(null);
-  };
-
-  const addCategory = (category: Omit<Category, 'id'>) => {
-    const newCategory = { ...category, id: self.crypto && self.crypto.randomUUID ? self.crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36) };
-    if (newCategory.type === 'income') {
-      setIncomeCategories(prev => [...prev, newCategory]);
-    } else {
-      setExpenseCategories(prev => [...prev, newCategory]);
-    }
-    return newCategory;
-  };
-
-  const updateCategory = (updatedCategory: Category) => {
-    if (updatedCategory.type === 'income') {
-      setIncomeCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
-    } else {
-      setExpenseCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
-    }
-    setTransactions(prev => prev.map(t => {
-      if (t.category.id === updatedCategory.id) {
-        return { ...t, category: updatedCategory };
-      }
-      return t;
-    }));
-  };
-
-  const deleteCategory = (categoryId: string, categoryType: TransactionType) => {
-    const isCategoryUsed = transactions.some(t => t.category.id === categoryId);
-    if (isCategoryUsed) {
-      alert('Không thể xóa danh mục này vì nó đã được sử dụng trong một hoặc nhiều giao dịch.');
-      return;
-    }
-
-    if (categoryType === 'income') {
-      setIncomeCategories(prev => prev.filter(c => c.id !== categoryId));
-    } else {
-      setExpenseCategories(prev => prev.filter(c => c.id !== categoryId));
-    }
-  };
-
 
   const deleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
+    setTransactions(transactions.filter(t => t.id !== id));
   };
 
-  const handleBackup = () => {
-    const dataToBackup = {
-      transactions,
-      incomeCategories,
-      expenseCategories,
-    };
-    const dataStr = JSON.stringify(dataToBackup, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const date = new Date().toISOString().slice(0, 10);
-    link.download = `quan-ly-thu-chi-backup-${date}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  // Calculate totals
+  const totalIncome = transactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalExpense = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const balance = totalIncome - totalExpense;
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(amount);
   };
 
-  const handleRestore = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const filteredCategories = categories.filter(c => c.type === transactionType);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result;
-        if (typeof text !== 'string') {
-          throw new Error('Định dạng tệp không hợp lệ.');
-        }
-        const restoredData = JSON.parse(text);
-
-        if (
-          !restoredData.transactions ||
-          !restoredData.incomeCategories ||
-          !restoredData.expenseCategories ||
-          !Array.isArray(restoredData.transactions) ||
-          !Array.isArray(restoredData.incomeCategories) ||
-          !Array.isArray(restoredData.expenseCategories)
-        ) {
-          throw new Error('Tệp sao lưu không hợp lệ hoặc bị hỏng.');
-        }
-
-        if (window.confirm('Bạn có chắc chắn muốn khôi phục dữ liệu không? Tất cả dữ liệu hiện tại sẽ bị ghi đè.')) {
-          setTransactions(restoredData.transactions);
-          setIncomeCategories(restoredData.incomeCategories);
-          setExpenseCategories(restoredData.expenseCategories);
-          alert('Khôi phục dữ liệu thành công!');
-        }
-      } catch (error) {
-        console.error("Lỗi khi khôi phục dữ liệu:", error);
-        alert(`Đã xảy ra lỗi khi khôi phục dữ liệu: ${error instanceof Error ? error.message : 'Lỗi không xác định'}`);
-      } finally {
-        event.target.value = '';
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleExportExcel = () => {
-    if (transactions.length === 0) {
-      alert("Không có dữ liệu để xuất.");
-      return;
-    }
-
-    const headers = ["Ngày", "Loại", "Danh mục", "Số tiền", "Mô tả"];
-    const rows = transactions.map(t => [
-      new Date(t.date).toLocaleDateString('vi-VN'),
-      t.type === 'income' ? 'Thu' : 'Chi',
-      t.category.name,
-      t.amount.toString(),
-      `"${t.description.replace(/"/g, '""')}"`
-    ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(r => r.join(","))
-    ].join("\r\n");
-
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const date = new Date().toISOString().slice(0, 10);
-    link.download = `chi-tiet-thu-chi-${date}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleSyncToCloud = async () => {
-    setIsSyncing(true);
-    try {
-      // SỬ DỤNG URLSearchParams (FORM DATA)
-      // Đây là phương pháp ổn định nhất để gửi POST request đến Google Apps Script
-      // mà không bị mất dữ liệu khi trình duyệt thực hiện redirect (302) hoặc chặn CORS.
-      const formData = new URLSearchParams();
-      formData.append('action', 'sync');
-      formData.append('data', JSON.stringify(transactions));
-
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData
-      });
-
-      alert('Đã gửi yêu cầu đồng bộ. Vui lòng kiểm tra Google Sheet sau vài giây.');
-
-    } catch (error) {
-      console.error("Sync Error:", error);
-      alert('Lỗi kết nối: ' + (error instanceof Error ? error.message : String(error)));
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleLoadFromCloud = async () => {
-    if (!window.confirm("Bạn có chắc chắn muốn tải dữ liệu từ Google Sheet? Dữ liệu hiện tại trên ứng dụng sẽ được cập nhật.")) return;
-
-    setIsSyncing(true);
-    try {
-      const timestamp = new Date().getTime();
-      const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=read&t=${timestamp}`, {
-        method: 'GET',
-        mode: 'cors',
-        credentials: 'omit'
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
-      }
-
-      const textResult = await response.text();
-
-      if (textResult.trim().startsWith('<')) {
-        console.error("Server returned HTML instead of JSON:", textResult);
-        throw new Error("Lỗi cấu hình Backend: Server trả về HTML thay vì JSON. Vui lòng kiểm tra lại quyền truy cập (Deploy as 'Anyone') trong Google Apps Script.");
-      }
-
-      let result;
-      try {
-        result = JSON.parse(textResult);
-      } catch (e) {
-        throw new Error("Dữ liệu trả về bị lỗi định dạng JSON.");
-      }
-
-      if (result.status === 'success') {
-        const loadedTransactions: Transaction[] = result.data;
-
-        const newIncomeCats = [...incomeCategories];
-        const newExpenseCats = [...expenseCategories];
-        const incomeIds = new Set(newIncomeCats.map(c => c.id));
-        const expenseIds = new Set(newExpenseCats.map(c => c.id));
-
-        loadedTransactions.forEach(t => {
-          if (t.type === 'income') {
-            if (!incomeIds.has(t.category.id)) {
-              newIncomeCats.push(t.category);
-              incomeIds.add(t.category.id);
-            }
-          } else if (t.type === 'expense') {
-            if (!expenseIds.has(t.category.id)) {
-              newExpenseCats.push(t.category);
-              expenseIds.add(t.category.id);
-            }
-          }
-        });
-
-        setTransactions(loadedTransactions);
-        setIncomeCategories(newIncomeCats);
-        setExpenseCategories(newExpenseCats);
-
-        alert(`Đã tải thành công ${loadedTransactions.length} giao dịch từ Google Sheet!`);
+  // Chart data
+  const categoryData = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((acc, tx) => {
+      const existing = acc.find(item => item.name === tx.category.name);
+      if (existing) {
+        existing.value += tx.amount;
       } else {
-        throw new Error(result.message || 'Lỗi không xác định từ server');
+        acc.push({
+          name: tx.category.name,
+          value: tx.amount,
+          color: tx.category.color
+        });
       }
-    } catch (error) {
-      console.error("Load Error:", error);
-      alert('Không thể tải dữ liệu: ' + (error instanceof Error ? error.message : String(error)));
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+      return acc;
+    }, [] as { name: string; value: number; color: string }[]);
 
-  const filteredTransactions = useMemo(() => {
-    return transactions
-      .filter(t => {
-        if (!dateRange.startDate || !dateRange.endDate) return true;
-        return t.date >= dateRange.startDate && t.date <= dateRange.endDate;
-      })
-      .filter(t => {
-        if (filterType === 'all') return true;
-        return t.type === filterType;
-      })
-      .filter(t => {
-        if (filterCategory === 'all') return true;
-        return t.category.id === filterCategory;
+  // Monthly trend data
+  const monthlyData = transactions.reduce((acc, tx) => {
+    const month = new Date(tx.date).toLocaleDateString('en-US', { month: 'short' });
+    const existing = acc.find(item => item.month === month);
+    
+    if (existing) {
+      if (tx.type === 'income') {
+        existing.income += tx.amount;
+      } else {
+        existing.expense += tx.amount;
+      }
+    } else {
+      acc.push({
+        month,
+        income: tx.type === 'income' ? tx.amount : 0,
+        expense: tx.type === 'expense' ? tx.amount : 0
       });
-  }, [transactions, dateRange, filterType, filterCategory]);
-
-  const categoryFilterOptions = useMemo(() => {
-    if (filterType === 'income') return incomeCategories;
-    if (filterType === 'expense') return expenseCategories;
-    return [];
-  }, [filterType, incomeCategories, expenseCategories]);
-
-  const { totalIncome, totalExpense, balance } = useMemo(() => {
-    const totalIncome = filteredTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = filteredTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const balance = totalIncome - totalExpense;
-    return { totalIncome, totalExpense, balance };
-  }, [filteredTransactions]);
-
-  const Dashboard = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-1 flex flex-col gap-6">
-        <button
-          onClick={() => setIsAddTransactionOpen(true)}
-          className="w-full bg-accent text-white py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-lg font-bold hover:bg-blue-600 transition-transform active:scale-95"
-        >
-          <span className="text-2xl">+</span> Quick Add
-        </button>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
-          <SummaryCard title="Số Dư" amount={balance} type="balance" />
-          <SummaryCard title="Tổng Thu" amount={totalIncome} type="income" />
-          <SummaryCard title="Tổng Chi" amount={totalExpense} type="expense" />
-        </div>
-      </div>
-
-      <div className="lg:col-span-2 flex flex-col gap-6">
-        <DateRangePicker
-          startDate={dateRange.startDate}
-          endDate={dateRange.endDate}
-          onDateChange={handleDateChange}
-        />
-
-        <div className="bg-secondary p-4 rounded-lg shadow-lg">
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <button
-              onClick={() => setFilterType('all')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'all' ? 'bg-accent text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-gray-700'
-                }`}
-            >
-              Tất cả
-            </button>
-            <button
-              onClick={() => setFilterType('income')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'income' ? 'bg-income text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-gray-700'
-                }`}
-            >
-              Thu
-            </button>
-            <button
-              onClick={() => setFilterType('expense')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'expense' ? 'bg-expense text-white shadow-md' : 'bg-primary text-text-secondary hover:bg-gray-700'
-                }`}
-            >
-              Chi
-            </button>
-            <div className="w-full sm:w-auto flex-grow sm:flex-grow-0 sm:min-w-[200px]">
-              <select
-                id="category-filter"
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                disabled={filterType === 'all'}
-                className="w-full bg-primary border border-gray-600 rounded-md p-2 text-sm focus:ring-accent focus:border-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Lọc theo danh mục"
-              >
-                <option value="all">Tất cả danh mục</option>
-                {categoryFilterOptions.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="hidden">
-          {/* Hid old summary grid */}
-          <SummaryCard title="Số Dư" amount={balance} type="balance" />
-        </div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <CategoryChart transactions={filteredTransactions} />
-          <DailyTrendChart transactions={filteredTransactions} startDate={dateRange.startDate} endDate={dateRange.endDate} />
-        </div>
-        <TransactionList
-          transactions={filteredTransactions}
-          deleteTransaction={deleteTransaction}
-          onEditTransaction={setEditingTransaction}
-        />
-      </div>
-    </div>
-  );
+    }
+    return acc;
+  }, [] as { month: string; income: number; expense: number }[]);
 
   return (
-    <div className="min-h-screen bg-primary font-sans text-text-primary flex">
-      <Sidebar
-        activeView={activeView}
-        setActiveView={setActiveView}
-        isSidebarOpen={isSidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+      <div className="max-w-md mx-auto min-h-screen bg-slate-900/50 backdrop-blur-sm">
+        {currentView === 'dashboard' ? (
+          <>
+            {/* Dashboard View */}
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">Dashboard</h1>
+                <button className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors">
+                  <Settings className="w-6 h-6" />
+                </button>
+              </div>
 
-      <div className="flex-1 flex flex-col transition-all duration-300 lg:ml-64">
-        <header className="bg-secondary p-4 shadow-md flex items-center">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden mr-4 p-2 rounded-md hover:bg-primary">
-            <MenuIcon />
-          </button>
-          <h1 className="text-2xl font-bold text-center text-text-primary">
-            {activeView === 'dashboard' ? 'Trang Chủ' : 'Báo Cáo & Phân Tích'}
-          </h1>
-        </header>
+              {/* Balance Card */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-6 shadow-xl">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="text-blue-100 text-sm mb-1">Wallet Balance</p>
+                    <h2 className="text-4xl font-bold">{formatCurrency(balance)}</h2>
+                  </div>
+                  <button className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-full text-sm font-medium flex items-center gap-1 transition-colors">
+                    <Plus className="w-4 h-4" /> Add Funds
+                  </button>
+                </div>
+                
+                <div className="flex gap-6 mt-6">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-green-300" />
+                    <div>
+                      <p className="text-xs text-blue-100">Income</p>
+                      <p className="font-semibold text-green-300">{formatCurrency(totalIncome)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="w-5 h-5 text-red-300" />
+                    <div>
+                      <p className="text-xs text-blue-100">Expense</p>
+                      <p className="font-semibold text-red-300">-{formatCurrency(totalExpense)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-        <main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
-          {activeView === 'dashboard' ? <Dashboard /> : <ReportsPage allTransactions={transactions} incomeCategories={incomeCategories} expenseCategories={expenseCategories} />}
-        </main>
+              {/* Quick Add Button */}
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="w-full mt-6 py-4 bg-blue-600 hover:bg-blue-700 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-colors"
+              >
+                <Plus className="w-5 h-5" /> Quick Add
+              </button>
+            </div>
+
+            {/* Recent Transactions */}
+            <div className="px-6 pb-24">
+              <h2 className="text-xl font-bold mb-4">Latest Activities</h2>
+              <div className="space-y-3">
+                {transactions.length === 0 ? (
+                  <p className="text-center text-slate-400 py-8">No transactions yet</p>
+                ) : (
+                  transactions.slice(0, 10).map(tx => {
+                    const Icon = categoryIcons[tx.category.icon];
+                    return (
+                      <div key={tx.id} className="bg-slate-800/80 backdrop-blur rounded-2xl p-4 flex items-center justify-between hover:bg-slate-800 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div
+                            className="w-12 h-12 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: `${tx.category.color}20` }}
+                          >
+                            <Icon className="w-6 h-6" style={{ color: tx.category.color }} />
+                          </div>
+                          <div>
+                            <p className="font-semibold">{tx.description}</p>
+                            <p className="text-sm text-slate-400">
+                              {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right flex items-center gap-3">
+                          <span className={`font-bold text-lg ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                            {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                          </span>
+                          <button
+                            onClick={() => deleteTransaction(tx.id)}
+                            className="text-slate-500 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Reports View */}
+            <div className="p-6 pb-24">
+              <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">Spending Analytics</h1>
+                <button className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors">
+                  <Settings className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Time Filter */}
+              <div className="flex gap-2 mb-6 bg-slate-800/50 rounded-2xl p-1">
+                <button className="flex-1 py-2 rounded-xl bg-transparent text-slate-400 font-medium">Weekly</button>
+                <button className="flex-1 py-2 rounded-xl bg-blue-600 text-white font-medium">Monthly</button>
+                <button className="flex-1 py-2 rounded-xl bg-transparent text-slate-400 font-medium">Yearly</button>
+              </div>
+
+              {/* Spending by Category */}
+              <div className="bg-slate-800/80 rounded-3xl p-6 mb-6">
+                <h3 className="text-lg font-bold mb-4">Spending by Category</h3>
+                {categoryData.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <RechartsPie>
+                        <Pie
+                          data={categoryData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={2}
+                        >
+                          {categoryData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px' }}
+                        />
+                      </RechartsPie>
+                    </ResponsiveContainer>
+                    <div className="text-center mt-4">
+                      <p className="text-sm text-slate-400">Total Spent</p>
+                      <p className="text-2xl font-bold">{formatCurrency(totalExpense)}</p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-center text-slate-400 py-8">No expense data</p>
+                )}
+              </div>
+
+              {/* Income vs Expense Trend */}
+              <div className="bg-slate-800/80 rounded-3xl p-6 mb-6">
+                <h3 className="text-lg font-bold mb-4">Income vs. Expense Trend</h3>
+                {monthlyData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={monthlyData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                      <XAxis dataKey="month" stroke="#94a3b8" />
+                      <YAxis stroke="#94a3b8" />
+                      <Tooltip
+                        formatter={(value: number) => formatCurrency(value)}
+                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px' }}
+                      />
+                      <Bar dataKey="income" fill="#10b981" radius={[8, 8, 0, 0]} />
+                      <Bar dataKey="expense" fill="#ef4444" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-center text-slate-400 py-8">No trend data</p>
+                )}
+              </div>
+
+              {/* Top Spending Categories */}
+              <div className="bg-slate-800/80 rounded-3xl p-6">
+                <h3 className="text-lg font-bold mb-4">Top Spending Categories</h3>
+                <div className="space-y-4">
+                  {categoryData.slice(0, 4).map((cat, index) => {
+                    const Icon = categoryIcons[categories.find(c => c.name === cat.name)?.icon || 'more'];
+                    const percentage = (cat.value / totalExpense * 100).toFixed(0);
+                    return (
+                      <div key={index} className="flex items-center gap-4">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: `${cat.color}30` }}
+                        >
+                          <Icon className="w-5 h-5" style={{ color: cat.color }} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between mb-1">
+                            <span className="font-medium">{cat.name}</span>
+                            <span className="text-sm text-slate-400">{percentage}%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${percentage}%`,
+                                  backgroundColor: cat.color
+                                }}
+                              />
+                            </div>
+                            <span className="font-bold text-sm">{formatCurrency(cat.value)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Add Transaction Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end z-50">
+            <div className="bg-slate-900 rounded-t-3xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <button onClick={() => setShowAddModal(false)} className="text-blue-400 font-medium">Cancel</button>
+                  <h2 className="font-bold text-lg">Add New Transaction</h2>
+                  <button
+                    onClick={addTransaction}
+                    className="text-blue-400 font-semibold disabled:text-slate-600"
+                    disabled={!amount || !selectedCategory}
+                  >
+                    Save
+                  </button>
+                </div>
+
+                {/* Amount Display */}
+                <div className="text-center mb-6 py-8 bg-slate-800/50 rounded-2xl">
+                  <span className="text-5xl font-bold text-slate-300">
+                    ${amount || '0.00'}
+                  </span>
+                </div>
+
+                {/* Type Toggle */}
+                <div className="flex gap-2 mb-6">
+                  <button
+                    onClick={() => {
+                      setTransactionType('expense');
+                      setSelectedCategory(null);
+                    }}
+                    className={`flex-1 py-3 rounded-full font-semibold transition-colors ${
+                      transactionType === 'expense' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    Expense
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTransactionType('income');
+                      setSelectedCategory(null);
+                    }}
+                    className={`flex-1 py-3 rounded-full font-semibold transition-colors ${
+                      transactionType === 'income' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    Income
+                  </button>
+                </div>
+
+                {/* Date */}
+                <div className="mb-6 p-4 bg-slate-800/50 rounded-2xl flex justify-between items-center">
+                  <span className="text-slate-300">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                  <Calendar className="w-5 h-5 text-slate-400" />
+                </div>
+
+                {/* Categories */}
+                <div className="grid grid-cols-4 gap-4 mb-6 max-h-64 overflow-y-auto">
+                  {filteredCategories.map(cat => {
+                    const Icon = categoryIcons[cat.icon];
+                    const isSelected = selectedCategory?.id === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${
+                          isSelected ? 'bg-blue-600 scale-95' : 'bg-slate-800/50 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div
+                          className="w-14 h-14 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : `${cat.color}30` }}
+                        >
+                          <Icon className="w-7 h-7" style={{ color: isSelected ? 'white' : cat.color }} />
+                        </div>
+                        <span className="text-xs text-center">{cat.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Number Pad */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[1,2,3,4,5,6,7,8,9].map(num => (
+                    <button
+                      key={num}
+                      onClick={() => setAmount(prev => prev + num.toString())}
+                      className="p-4 text-2xl font-semibold bg-slate-800/50 hover:bg-slate-700/50 active:bg-slate-700 rounded-2xl transition-colors"
+                    >
+                      {num}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setAmount(prev => prev.includes('.') ? prev : prev + '.')}
+                    className="p-4 text-2xl font-semibold bg-slate-800/50 hover:bg-slate-700/50 active:bg-slate-700 rounded-2xl transition-colors"
+                  >
+                    .
+                  </button>
+                  <button
+                    onClick={() => setAmount(prev => prev + '0')}
+                    className="p-4 text-2xl font-semibold bg-slate-800/50 hover:bg-slate-700/50 active:bg-slate-700 rounded-2xl transition-colors"
+                  >
+                    0
+                  </button>
+                  <button
+                    onClick={() => setAmount(prev => prev.slice(0, -1))}
+                    className="p-4 bg-slate-800/50 hover:bg-slate-700/50 active:bg-slate-700 rounded-2xl transition-colors flex items-center justify-center"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Navigation */}
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-6 py-4">
+          <div className="flex justify-around items-center">
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              className={`flex flex-col items-center gap-1 transition-colors ${
+                currentView === 'dashboard' ? 'text-blue-500' : 'text-slate-400'
+              }`}
+            >
+              <Home className="w-6 h-6" />
+              <span className="text-xs font-medium">Dashboard</span>
+            </button>
+            <button className="flex flex-col items-center gap-1 text-slate-400">
+              <BarChart3 className="w-6 h-6" />
+              <span className="text-xs font-medium">Transactions</span>
+            </button>
+            <button
+              onClick={() => setCurrentView('reports')}
+              className={`flex flex-col items-center gap-1 transition-colors ${
+                currentView === 'reports' ? 'text-blue-500' : 'text-slate-400'
+              }`}
+            >
+              <PieChart className="w-6 h-6" />
+              <span className="text-xs font-medium">Reports</span>
+            </button>
+            <button className="flex flex-col items-center gap-1 text-slate-400">
+              <Settings className="w-6 h-6" />
+              <span className="text-xs font-medium">Profile</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <EditTransactionModal
-        isOpen={!!editingTransaction}
-        transaction={editingTransaction}
-        onClose={() => setEditingTransaction(null)}
-        onSave={updateTransaction}
-        incomeCategories={incomeCategories}
-        expenseCategories={expenseCategories}
-      />
-      <CategoryManagerModal
-        isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        incomeCategories={incomeCategories}
-        expenseCategories={expenseCategories}
-        onUpdateCategory={updateCategory}
-        onDeleteCategory={deleteCategory}
-        onAddCategory={addCategory}
-        onBackup={handleBackup}
-        onRestore={handleRestore}
-        onExportExcel={handleExportExcel}
-        onSyncToCloud={handleSyncToCloud}
-        onLoadFromCloud={handleLoadFromCloud}
-        isSyncing={isSyncing}
-      />
-
-      {isAddTransactionOpen && (
-        <AddTransactionPage
-          onClose={() => setIsAddTransactionOpen(false)}
-          onSave={addTransaction}
-          incomeCategories={incomeCategories}
-          expenseCategories={expenseCategories}
-        />
-      )}
+      <style>{`
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
+
+export default App;
