@@ -200,35 +200,40 @@ document.getElementById('chart-type-selector').addEventListener('change', () => 
 })
 
 function updateDoughnutChart(transactions) {
-  const ctx = document.getElementById('expense-chart').getContext('2d')
-  const chartType = document.getElementById('chart-type-selector').value // income | expense
+  const canvas = document.getElementById('expense-chart');
+  if (!canvas) return; // Kiểm tra an toàn nếu chưa load giao diện
 
-  // Filter based on selection
-  const filtered = transactions.filter(t => t.type === chartType)
+  const ctx = canvas.getContext('2d');
+  const chartType = document.getElementById('chart-type-selector').value; // income | expense
 
-  // Group by category
-  const grouped = {}
+  // 1. Lọc dữ liệu theo loại (Thu hoặc Chi)
+  const filtered = transactions.filter(t => t.type === chartType);
+
+  // 2. Nhóm tổng tiền theo danh mục
+  const grouped = {};
   filtered.forEach(t => {
-    const cat = t.category || 'Khác'
-    grouped[cat] = (grouped[cat] || 0) + Number(t.amount)
-  })
+    const cat = t.category || 'Khác';
+    grouped[cat] = (grouped[cat] || 0) + Number(t.amount);
+  });
 
-  // Prepare data
-  const labels = Object.keys(grouped)
-  const data = Object.values(grouped)
+  // 3. Chuyển đổi sang mảng và SẮP XẾP giảm dần (để danh mục lớn nhất hiện đầu tiên)
+  const sortedEntries = Object.entries(grouped).sort((a, b) => b[1] - a[1]);
+  const labels = sortedEntries.map(e => e[0]);
+  const data = sortedEntries.map(e => e[1]);
 
-  // Colors helper
-  const backgroundColors = [
+  // 4. Xử lý màu sắc thông minh (Tự động lặp lại màu nếu danh mục > 12)
+  const baseColors = [
     '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
     '#C9CBCF', '#E7E9ED', '#76D7C4', '#F1948A', '#85C1E9', '#F7DC6F'
-  ]
+  ];
+  const backgroundColors = labels.map((_, i) => baseColors[i % baseColors.length]);
 
-  // Destroy old chart if exists
+  // 5. Hủy biểu đồ cũ trước khi vẽ mới để tránh lỗi chồng đè
   if (myChart) {
-    myChart.destroy()
+    myChart.destroy();
   }
 
-  // Draw new chart
+  // 6. Vẽ biểu đồ mới
   myChart = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -236,21 +241,39 @@ function updateDoughnutChart(transactions) {
       datasets: [{
         label: chartType === 'income' ? 'Thu nhập' : 'Chi tiêu',
         data: data,
-        backgroundColor: backgroundColors.slice(0, labels.length),
-        hoverOffset: 4
+        backgroundColor: backgroundColors,
+        hoverOffset: 4,
+        borderWidth: 1
       }]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false, // Giúp biểu đồ không bị méo trên mobile
       plugins: {
         legend: { position: 'bottom' },
         title: {
           display: true,
-          text: chartType === 'income' ? 'Phân bố Thu nhập' : 'Phân bố Chi tiêu'
+          text: chartType === 'income' ? 'Phân bố Thu nhập' : 'Phân bố Chi tiêu',
+          font: { size: 16 }
+        },
+        tooltip: {
+          callbacks: {
+            // Định dạng số tiền sang VNĐ trong tooltip
+            label: function(context) {
+              let label = context.label || '';
+              if (label) {
+                label += ': ';
+              }
+              if (context.parsed !== null) {
+                label += new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(context.parsed);
+              }
+              return label;
+            }
+          }
         }
       }
     }
-  })
+  });
 }
 
 function updateTrendChart(transactions) {
