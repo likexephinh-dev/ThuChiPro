@@ -1,130 +1,19 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Thu Chi Pro</title>
-    <script>
-        // Global Error Handler
-        window.onerror = function (message, source, lineno, colno, error) {
-            showError('JS Error: ' + message + '\nAt: ' + source + ':' + lineno + ':' + colno);
-        };
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-        // Resource Loading Error Handler (Capture Phase)
-        window.addEventListener('error', function (event) {
-            if (event.target && (event.target.tagName === 'SCRIPT' || event.target.tagName === 'LINK')) {
-                showError('Resource Load Failed: ' + (event.target.src || event.target.href));
-            }
-        }, true);
-
-        // Unhandled Promise Rejection Handler
-        window.addEventListener('unhandledrejection', function (event) {
-            showError('Unhandled Promise: ' + event.reason);
-        });
-
-        function showError(msg) {
-            var el = document.getElementById('global-error-display');
-            if (!el) {
-                el = document.createElement('div');
-                el.id = 'global-error-display';
-                el.style.position = 'fixed';
-                el.style.top = '0';
-                el.style.left = '0';
-                el.style.width = '100%';
-                el.style.height = '100%'; // Full screen
-                el.style.background = 'rgba(255, 235, 238, 0.95)'; // Light red
-                el.style.color = '#b71c1c';
-                el.style.padding = '20px';
-                el.style.zIndex = '99999';
-                el.style.fontSize = '16px';
-                el.style.fontFamily = 'monospace';
-                el.style.whiteSpace = 'pre-wrap';
-                el.style.overflow = 'auto';
-                document.body.appendChild(el);
-            }
-            el.textContent += '\n----------------\n' + msg;
-        }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
-    <!-- Initial Loading State: If this stays visible, JS didn't mount -->
-    <div class="app">
-
-      <!-- TIÊU ĐỀ -->
-      <h1>💰 Thu – Chi cá nhân</h1>
-
-      <!-- CARD: FORM NHẬP -->
-      <div class="card">
-        <h3>➕ Thêm giao dịch</h3>
-
-        <input id="amount" type="number" placeholder="Số tiền" />
-
-        <select id="type">
-          <option value="income">Thu</option>
-          <option value="expense">Chi</option>
-        </select>
-
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <select id="category" style="margin-top: 8px; flex: 1;"></select>
-          <button onclick="promptAddCategory()" style="width: 40px; margin-top: 8px; padding: 10px;"
-            title="Thêm danh mục">+</button>
-          <button onclick="manageCategories()" style="width: 40px; margin-top: 8px; padding: 10px;"
-            title="Quản lý danh mục">⚙️</button>
-        </div>
-        <div class="input-group">
-          <label>Mô tả</label>
-          <input type="text" id="description" placeholder="Ví dụ: Ăn trưa..." />
+    <div id="root">
         </div>
 
-        <div class="input-group">
-          <label>Ngày</label>
-          <input type="date" id="date" />
-        </div>
-
-        <button id="save-btn" onclick="addTransaction()">Thêm giao dịch</button>
-      </div>
-      <!-- CARD: DANH SÁCH -->
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <h3 style="margin: 0;">📋 Danh sách giao dịch</h3>
-          <input type="month" id="month-filter" style="width: auto; margin: 0; padding: 6px;" />
-        </div>
-        <ul id="transaction-list"></ul>
-      </div>
-      <!-- KHỐI TỔNG (SUMMARY) -->
-      <div class="summary">
-        <div class="box income">
-          Thu<br />
-          <strong><span id="total-income">0</span> đ</strong>
-        </div>
-
-        <div class="box expense">
-          Chi<br />
-          <strong><span id="total-expense">0</span> đ</strong>
-        </div>
-
-        <div class="box balance">
-          Số dư<br />
-          <strong><span id="balance">0</span> đ</strong>
-        </div>
-      </div>
-
-      <!-- BIỂU ĐỒ -->
-      <!-- BIỂU ĐỒ TRÒN -->
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h3>📊 Phân bố</h3>
-          <select id="chart-type-selector" style="width: auto; margin: 0;">
-            <option value="expense">Chi tiêu</option>
-            <option value="income">Thu nhập</option>
-          </select>
-        </div>
-        <canvas id="expense-chart"></canvas>
-        </div>
-    </div>
-    <script type="module" src="./script.js"></script>
-</body>
-
+    <script type="module" src="/src/main.tsx"></script>
+    
+    </body>
 </html>
